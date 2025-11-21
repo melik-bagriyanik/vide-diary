@@ -16,7 +16,15 @@ export default function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack />
+      <Stack>
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+            gestureEnabled: false, // Disable swipe back gesture on iOS
+          }}
+        />
+      </Stack>
     </QueryClientProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -30,14 +30,8 @@ export default function VideoDetailsScreen() {
   const videoId = params.id as string;
   const video = useVideoStore((state) => state.videos.find((v) => v.id === videoId));
   const removeVideo = useVideoStore((state) => state.removeVideo);
-  const [isDeleting, setIsDeleting] = React.useState(false);
-
-  const player = useVideoPlayer(
-    video ? { uri: video.uri } : null,
-    {
-      autoPlay: false,
-    }
-  );
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleDelete = () => {
     Alert.alert(
@@ -57,6 +51,7 @@ export default function VideoDetailsScreen() {
               removeVideo(video.id);
               // Small delay for smooth transition
               await new Promise((resolve) => setTimeout(resolve, 300));
+              // Go to home (main screen - back button disabled)
               router.replace('/');
             }
           },
@@ -97,21 +92,25 @@ export default function VideoDetailsScreen() {
 
       {/* Video Player */}
       <View style={styles.videoContainer}>
-        {player ? (
-          <VideoView
-            player={player}
-            style={styles.videoPlayer}
-            contentFit="contain"
-            nativeControls
-            allowsFullscreen
-            allowsPictureInPicture
-          />
-        ) : (
-          <View style={styles.videoPlaceholder}>
-            <ActivityIndicator size="large" color="#2563eb" />
-            <Text style={styles.videoPlaceholderText}>Loading video...</Text>
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Loading video...</Text>
           </View>
         )}
+        <Video
+          source={{ uri: video.uri }}
+          style={styles.videoPlayer}
+          resizeMode={ResizeMode.CONTAIN}
+          useNativeControls
+          onLoad={() => {
+            setIsLoading(false);
+          }}
+          onError={(error) => {
+            console.error('Video error:', error);
+            setIsLoading(false);
+          }}
+        />
       </View>
 
       {/* Details */}
@@ -188,19 +187,20 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 9,
     backgroundColor: '#000000',
+    position: 'relative',
   },
   videoPlayer: {
     width: '100%',
     height: '100%',
   },
-  videoPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#000000',
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
-  videoPlaceholderText: {
+  loadingText: {
     marginTop: 12,
     fontSize: 14,
     color: '#ffffff',
@@ -304,4 +304,3 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 });
-

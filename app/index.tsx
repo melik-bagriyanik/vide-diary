@@ -7,11 +7,15 @@ import {
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
+  Platform,
+  StatusBar,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -43,12 +47,28 @@ export default function HomeScreen() {
   const videos = useVideoStore((state) => state.videos);
   const [refreshing, setRefreshing] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Wait for store hydration
   useEffect(() => {
     const timer = setTimeout(() => setIsHydrated(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  // Prevent back button on Android (this is the main screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === 'android') {
+        const onBackPress = () => {
+          // Prevent going back from main screen
+          return true; // Return true to prevent default back behavior
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+      }
+    }, [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -124,7 +144,7 @@ export default function HomeScreen() {
   );
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
       <View style={styles.headerLeft}>
         <Text style={styles.headerTitle}>📹 Video Diary</Text>
         <Text style={styles.headerSubtitle}>
@@ -196,7 +216,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingTop: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',

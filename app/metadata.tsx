@@ -93,8 +93,8 @@ export default function MetadataScreen() {
       // Small delay to ensure store is updated
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Navigate to home
-      router.replace('/(tabs)/');
+      // Navigate to home (main screen - back button disabled)
+      router.replace('/');
     } catch (error: any) {
       console.error('❌ Error saving video:', error);
       Alert.alert(
