@@ -1,0 +1,307 @@
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useVideoStore } from '@/src/store/useVideoStore';
+import { Ionicons } from '@expo/vector-icons';
+import { VideoView, useVideoPlayer } from 'expo-video';
+
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export default function VideoDetailsScreen() {
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const videoId = params.id as string;
+  const video = useVideoStore((state) => state.videos.find((v) => v.id === videoId));
+  const removeVideo = useVideoStore((state) => state.removeVideo);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const player = useVideoPlayer(
+    video ? { uri: video.uri } : null,
+    {
+      autoPlay: false,
+    }
+  );
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Video',
+      `Are you sure you want to delete "${video?.name}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (video) {
+              setIsDeleting(true);
+              removeVideo(video.id);
+              // Small delay for smooth transition
+              await new Promise((resolve) => setTimeout(resolve, 300));
+              router.replace('/');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (!video) {
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="alert-circle-outline" size={64} color="#d1d5db" />
+        <Text style={styles.emptyTitle}>Video Not Found</Text>
+        <Text style={styles.emptyMessage}>
+          The video you are looking for does not exist or has been deleted.
+        </Text>
+        <TouchableOpacity onPress={() => router.replace('/')} style={styles.backButton}>
+          <Text style={styles.backButtonText}>Go to Home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButtonHeader}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Video Details</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Video Player */}
+      <View style={styles.videoContainer}>
+        {player ? (
+          <VideoView
+            player={player}
+            style={styles.videoPlayer}
+            contentFit="contain"
+            nativeControls
+            allowsFullscreen
+            allowsPictureInPicture
+          />
+        ) : (
+          <View style={styles.videoPlaceholder}>
+            <ActivityIndicator size="large" color="#2563eb" />
+            <Text style={styles.videoPlaceholderText}>Loading video...</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Details */}
+      <View style={styles.detailsContainer}>
+        <View style={styles.titleSection}>
+          <Text style={styles.videoName}>{video.name}</Text>
+          <View style={styles.metadataRow}>
+            <Ionicons name="time-outline" size={16} color="#6b7280" />
+            <Text style={styles.videoDate}>{formatDate(video.createdAt)}</Text>
+          </View>
+        </View>
+
+        {video.description && (
+          <View style={styles.descriptionSection}>
+            <Text style={styles.descriptionLabel}>Description</Text>
+            <Text style={styles.videoDescription}>{video.description}</Text>
+          </View>
+        )}
+
+        {/* Delete Button */}
+        <TouchableOpacity
+          onPress={handleDelete}
+          style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
+          disabled={isDeleting}
+          activeOpacity={0.8}
+        >
+          {isDeleting ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color="#ffffff" />
+              <Text style={styles.deleteButtonText}>Delete Video</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  backButtonHeader: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  videoContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000000',
+  },
+  videoPlayer: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoPlaceholderText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#ffffff',
+  },
+  detailsContainer: {
+    padding: 20,
+  },
+  titleSection: {
+    marginBottom: 24,
+  },
+  videoName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  videoDate: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  descriptionSection: {
+    marginBottom: 32,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  descriptionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  videoDescription: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+    padding: 32,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  backButton: {
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+});
+
