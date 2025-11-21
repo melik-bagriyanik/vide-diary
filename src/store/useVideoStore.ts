@@ -1,32 +1,57 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-type VideoItem = {
-  id: string;
-  name: string;
-  description?: string;
-  uri: string;
-  createdAt: number;
-};
+import { getAllVideos, addVideo as addVideoToDB, removeVideo as removeVideoFromDB, type VideoItem } from '../lib/database';
 
 type State = {
   videos: VideoItem[];
-  addVideo: (v: VideoItem) => void;
-  removeVideo: (id: string) => void;
+  isLoading: boolean;
+  isHydrated: boolean;
+  loadVideos: () => Promise<void>;
+  addVideo: (v: VideoItem) => Promise<void>;
+  removeVideo: (id: string) => Promise<void>;
 };
 
-export const useVideoStore = create<State>()(
-  persist(
-    (set) => ({
-      videos: [],
-      addVideo: (v) => set((s) => ({ videos: [v, ...s.videos] })),
-      removeVideo: (id) => set((s) => ({ videos: s.videos.filter((x) => x.id !== id) })),
-    }),
-    {
-      name: 'video-storage',
-      getStorage: () => AsyncStorage,
+export const useVideoStore = create<State>((set, get) => ({
+  videos: [],
+  isLoading: false,
+  isHydrated: false,
+  
+  loadVideos: async () => {
+    set({ isLoading: true });
+    try {
+      const videos = await getAllVideos();
+      set({ videos, isLoading: false, isHydrated: true });
+      console.log('✅ Videos loaded from database:', videos.length);
+    } catch (error) {
+      console.error('❌ Error loading videos:', error);
+      set({ isLoading: false, isHydrated: true });
     }
-  )
-);
+  },
+
+  addVideo: async (v: VideoItem) => {
+    try {
+      await addVideoToDB(v);
+      // Reload videos from database to ensure consistency
+      const videos = await getAllVideos();
+      set({ videos });
+      console.log('✅ Video added and store updated');
+    } catch (error) {
+      console.error('❌ Error adding video:', error);
+      throw error;
+    }
+  },
+
+  removeVideo: async (id: string) => {
+    try {
+      await removeVideoFromDB(id);
+      // Update local state immediately for better UX
+      set((state) => ({
+        videos: state.videos.filter((x) => x.id !== id),
+      }));
+      console.log('✅ Video removed and store updated');
+    } catch (error) {
+      console.error('❌ Error removing video:', error);
+      throw error;
+    }
+  },
+}));
 

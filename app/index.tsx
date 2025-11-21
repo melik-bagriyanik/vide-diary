@@ -45,15 +45,18 @@ function formatDate(timestamp: number): string {
 export default function HomeScreen() {
   const router = useRouter();
   const videos = useVideoStore((state) => state.videos);
+  const isLoading = useVideoStore((state) => state.isLoading);
+  const isHydrated = useVideoStore((state) => state.isHydrated);
+  const loadVideos = useVideoStore((state) => state.loadVideos);
   const [refreshing, setRefreshing] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Wait for store hydration
+  // Load videos from database on mount
   useEffect(() => {
-    const timer = setTimeout(() => setIsHydrated(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isHydrated && !isLoading) {
+      loadVideos();
+    }
+  }, [isHydrated, isLoading, loadVideos]);
 
   // Prevent back button on Android (this is the main screen)
   useFocusEffect(
@@ -72,10 +75,9 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Simulate refresh delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await loadVideos();
     setRefreshing(false);
-  }, []);
+  }, [loadVideos]);
 
   const renderVideoItem = ({ item }: { item: typeof videos[0] }) => (
     <TouchableOpacity
@@ -162,7 +164,7 @@ export default function HomeScreen() {
     </View>
   );
 
-  if (!isHydrated) {
+  if (!isHydrated || isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563eb" />

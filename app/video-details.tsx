@@ -48,7 +48,7 @@ export default function VideoDetailsScreen() {
           onPress: async () => {
             if (video) {
               setIsDeleting(true);
-              removeVideo(video.id);
+              await removeVideo(video.id);
               // Small delay for smooth transition
               await new Promise((resolve) => setTimeout(resolve, 300));
               // Go to home (main screen - back button disabled)

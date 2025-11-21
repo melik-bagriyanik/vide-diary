@@ -84,14 +84,11 @@ export default function MetadataScreen() {
         createdAt: Date.now(),
       };
 
-      console.log('💾 Saving video to store:', videoData);
+      console.log('💾 Saving video to database:', videoData);
 
-      addVideo(videoData);
+      await addVideo(videoData);
 
       console.log('✅ Video saved successfully, navigating to home...');
-
-      // Small delay to ensure store is updated
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Navigate to home (main screen - back button disabled)
       router.replace('/');

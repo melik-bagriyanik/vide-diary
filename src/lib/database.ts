@@ -1,0 +1,91 @@
+import * as SQLite from 'expo-sqlite';
+
+export type VideoItem = {
+  id: string;
+  name: string;
+  description?: string;
+  uri: string;
+  createdAt: number;
+};
+
+let db: SQLite.SQLiteDatabase | null = null;
+
+export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (db) {
+    return db;
+  }
+
+  try {
+    db = await SQLite.openDatabaseAsync('video-diary.db');
+    
+    // Create videos table if it doesn't exist
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS videos (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        uri TEXT NOT NULL,
+        createdAt INTEGER NOT NULL
+      );
+    `);
+
+    console.log('✅ Database initialized successfully');
+    return db;
+  } catch (error) {
+    console.error('❌ Error initializing database:', error);
+    throw error;
+  }
+}
+
+export async function getAllVideos(): Promise<VideoItem[]> {
+  const database = await initDatabase();
+  try {
+    const result = await database.getAllAsync<VideoItem>(
+      'SELECT * FROM videos ORDER BY createdAt DESC'
+    );
+    return result;
+  } catch (error) {
+    console.error('❌ Error fetching videos:', error);
+    return [];
+  }
+}
+
+export async function addVideo(video: VideoItem): Promise<void> {
+  const database = await initDatabase();
+  try {
+    await database.runAsync(
+      'INSERT INTO videos (id, name, description, uri, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [video.id, video.name, video.description || null, video.uri, video.createdAt]
+    );
+    console.log('✅ Video added to database:', video.id);
+  } catch (error) {
+    console.error('❌ Error adding video:', error);
+    throw error;
+  }
+}
+
+export async function removeVideo(id: string): Promise<void> {
+  const database = await initDatabase();
+  try {
+    await database.runAsync('DELETE FROM videos WHERE id = ?', [id]);
+    console.log('✅ Video removed from database:', id);
+  } catch (error) {
+    console.error('❌ Error removing video:', error);
+    throw error;
+  }
+}
+
+export async function getVideoById(id: string): Promise<VideoItem | null> {
+  const database = await initDatabase();
+  try {
+    const result = await database.getFirstAsync<VideoItem>(
+      'SELECT * FROM videos WHERE id = ?',
+      [id]
+    );
+    return result || null;
+  } catch (error) {
+    console.error('❌ Error fetching video:', error);
+    return null;
+  }
+}
+
