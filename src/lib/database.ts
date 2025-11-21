@@ -89,3 +89,35 @@ export async function getVideoById(id: string): Promise<VideoItem | null> {
   }
 }
 
+export async function updateVideo(id: string, updates: { name?: string; description?: string }): Promise<void> {
+  const database = await initDatabase();
+  try {
+    const updatesList: string[] = [];
+    const values: any[] = [];
+
+    if (updates.name !== undefined) {
+      updatesList.push('name = ?');
+      values.push(updates.name);
+    }
+
+    if (updates.description !== undefined) {
+      updatesList.push('description = ?');
+      values.push(updates.description || null);
+    }
+
+    if (updatesList.length === 0) {
+      console.warn('⚠️ No updates provided');
+      return;
+    }
+
+    values.push(id);
+    const query = `UPDATE videos SET ${updatesList.join(', ')} WHERE id = ?`;
+    
+    await database.runAsync(query, values);
+    console.log('✅ Video updated in database:', id);
+  } catch (error) {
+    console.error('❌ Error updating video:', error);
+    throw error;
+  }
+}
+

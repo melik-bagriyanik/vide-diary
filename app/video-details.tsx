@@ -121,6 +121,16 @@ export default function VideoDetailsScreen() {
           </View>
         )}
 
+        {/* Edit Button */}
+        <TouchableOpacity
+          onPress={() => router.push(`/edit-video?id=${video.id}`)}
+          style={styles.editButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="create-outline" size={20} color="#2563eb" />
+          <Text style={styles.editButtonText}>Edit Video</Text>
+        </TouchableOpacity>
+
         {/* Delete Button */}
         <TouchableOpacity
           onPress={handleDelete}
@@ -210,6 +220,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
     lineHeight: 24,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2563eb',
   },
   deleteButton: {
     flexDirection: 'row',

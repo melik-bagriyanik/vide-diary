@@ -19,10 +19,12 @@ export default function Layout() {
     console.error = (...args: any[]) => {
       const message = args[0]?.toString() || '';
       if (
-        message.includes('Cannot find native module') &&
-        message.includes('ExpoTrimVideo')
+        (message.includes('Cannot find native module') &&
+          message.includes('ExpoTrimVideo')) ||
+        message.includes('Seeking interrupted') ||
+        message.includes('Error in setPositionAsync')
       ) {
-        // Suppress this specific error
+        // Suppress these specific errors
         return;
       }
       originalError.apply(console, args);

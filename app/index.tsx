@@ -16,6 +16,7 @@ import { Image } from 'expo-image';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -79,12 +80,13 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadVideos]);
 
-  const renderVideoItem = ({ item }: { item: typeof videos[0] }) => (
-    <TouchableOpacity
-      style={styles.videoItem}
-      onPress={() => router.push(`/video-details?id=${item.id}`)}
-      activeOpacity={0.7}
-    >
+  const renderVideoItem = ({ item, index }: { item: typeof videos[0]; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 50).duration(300)}>
+      <TouchableOpacity
+        style={styles.videoItem}
+        onPress={() => router.push(`/video-details?id=${item.id}`)}
+        activeOpacity={0.7}
+      >
       <View style={styles.thumbnailContainer}>
         <Image
           source={{ uri: item.uri }}
@@ -123,10 +125,11 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
       </View>
     </TouchableOpacity>
+    </Animated.View>
   );
 
   const renderEmptyState = () => (
-    <View style={styles.emptyState}>
+    <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
       <View style={styles.emptyIconContainer}>
         <Ionicons name="videocam-outline" size={80} color="#d1d5db" />
       </View>
@@ -142,7 +145,7 @@ export default function HomeScreen() {
         <Ionicons name="add-circle" size={22} color="#ffffff" />
         <Text style={styles.addFirstButtonText}>Import Your First Video</Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 
   const renderHeader = () => (

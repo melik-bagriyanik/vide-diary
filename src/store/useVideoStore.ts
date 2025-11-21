@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getAllVideos, addVideo as addVideoToDB, removeVideo as removeVideoFromDB, type VideoItem } from '../lib/database';
+import { getAllVideos, addVideo as addVideoToDB, removeVideo as removeVideoFromDB, updateVideo as updateVideoInDB, type VideoItem } from '../lib/database';
 
 type State = {
   videos: VideoItem[];
@@ -8,6 +8,7 @@ type State = {
   loadVideos: () => Promise<void>;
   addVideo: (v: VideoItem) => Promise<void>;
   removeVideo: (id: string) => Promise<void>;
+  updateVideo: (id: string, updates: { name?: string; description?: string }) => Promise<void>;
 };
 
 export const useVideoStore = create<State>((set, get) => ({
@@ -50,6 +51,19 @@ export const useVideoStore = create<State>((set, get) => ({
       console.log('✅ Video removed and store updated');
     } catch (error) {
       console.error('❌ Error removing video:', error);
+      throw error;
+    }
+  },
+
+  updateVideo: async (id: string, updates: { name?: string; description?: string }) => {
+    try {
+      await updateVideoInDB(id, updates);
+      // Reload videos from database to ensure consistency
+      const videos = await getAllVideos();
+      set({ videos });
+      console.log('✅ Video updated and store refreshed');
+    } catch (error) {
+      console.error('❌ Error updating video:', error);
       throw error;
     }
   },

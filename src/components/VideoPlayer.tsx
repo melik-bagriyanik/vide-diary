@@ -49,15 +49,21 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           console.error('❌ Error in pauseAsync:', e);
         }
       },
-      setPositionAsync: async (position: number) => {
-        console.log('⏩ setPositionAsync called with:', position, 'seconds');
-        try {
-          // expo-av uses milliseconds
-          await videoRef.current?.setPositionAsync(position * 1000);
-        } catch (e) {
-          console.error('❌ Error in setPositionAsync:', e);
-        }
-      },
+            setPositionAsync: async (position: number) => {
+              console.log('⏩ setPositionAsync called with:', position, 'seconds');
+              try {
+                // expo-av uses milliseconds
+                await videoRef.current?.setPositionAsync(position * 1000);
+              } catch (e: any) {
+                // "Seeking interrupted" is a common non-critical error when seeking rapidly
+                const errorMsg = e?.message || String(e) || '';
+                if (errorMsg.includes('Seeking interrupted') || errorMsg.includes('interrupted')) {
+                  // Silent fail - this is expected when seeking rapidly
+                  return;
+                }
+                console.warn('⚠️ Error in setPositionAsync:', errorMsg);
+              }
+            },
     }));
 
     // Manual status check after 1.5 seconds
