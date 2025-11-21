@@ -52,60 +52,51 @@ export default function MetadataScreen() {
     try {
       let finalUri = uri;
 
-      // Try to trim video, but fallback to original if trim fails
+      // Try to trim video (optional - will use original if fails)
       try {
-        const trimmed = await trimMutation.mutateAsync({
+        const trimResult = await trimMutation.mutateAsync({
           uri,
           start: startTime,
           end: endTime,
         });
-        finalUri = trimmed.uri;
-        console.log('✅ Video trimmed successfully');
-      } catch (trimError: any) {
-        console.warn('⚠️ Video trimming failed, using original video:', trimError);
-        
-        // Check if it's a native module error
-        const errorMessage = trimError?.message || '';
-        if (
-          errorMessage.includes('native module') ||
-          errorMessage.includes('development build') ||
-          errorMessage.includes('Expo Go')
-        ) {
-          // Show alert but continue with original video
-          Alert.alert(
-            'Video Trimming Unavailable',
-            'Video trimming requires a development build. The full video will be saved instead of the selected segment.\n\n' +
-            'To enable trimming, rebuild the app with:\n' +
-            '• npx expo run:ios (for iOS)\n' +
-            '• npx expo run:android (for Android)',
-            [{ text: 'OK' }]
-          );
+
+        if (trimResult.success && trimResult.uri) {
+          finalUri = trimResult.uri;
+          console.log('✅ Video trimmed successfully');
         } else {
-          // Other errors - show alert but continue
-          Alert.alert(
-            'Trimming Failed',
-            'Could not trim the video. The full video will be saved instead.',
-            [{ text: 'OK' }]
-          );
+          // Trim failed, use original video
+          console.log('⚠️ Video trimming unavailable, using original video');
+          finalUri = uri;
         }
-        
-        // Continue with original URI
+      } catch (trimError: any) {
+        // Trim failed, use original video
+        console.log('⚠️ Video trimming failed, using original video:', trimError?.message);
         finalUri = uri;
       }
 
       // Save to store (with trimmed URI or original URI)
-      addVideo({
-        id: String(Date.now()),
+      const videoId = String(Date.now());
+      const videoData = {
+        id: videoId,
         name: formData.name,
         description: formData.description,
         uri: finalUri,
         createdAt: Date.now(),
-      });
+      };
+
+      console.log('💾 Saving video to store:', videoData);
+
+      addVideo(videoData);
+
+      console.log('✅ Video saved successfully, navigating to home...');
+
+      // Small delay to ensure store is updated
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Navigate to home
-      router.replace('/');
+      router.replace('/(tabs)/');
     } catch (error: any) {
-      console.error('Error saving video:', error);
+      console.error('❌ Error saving video:', error);
       Alert.alert(
         'Error',
         error?.message || 'Error saving video. Please try again.'
