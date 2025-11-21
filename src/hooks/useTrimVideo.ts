@@ -25,7 +25,25 @@ async function checkTrimVideoAvailability(): Promise<boolean> {
   try {
     // Try to dynamically import the module
     // This will fail if native module is not available
-    const module = await import('expo-trim-video');
+    // We need to catch the error at import time
+    let module: any;
+    try {
+      module = await import('expo-trim-video');
+    } catch (importError: any) {
+      // Import failed - native module not available
+      const errorMsg = importError?.message || String(importError) || '';
+      if (
+        errorMsg.includes('Cannot find native module') ||
+        errorMsg.includes('ExpoTrimVideo') ||
+        errorMsg.includes('native module') ||
+        importError?.code === 'MODULE_NOT_FOUND'
+      ) {
+        console.warn('⚠️ expo-trim-video native module not available (expected in Expo Go)');
+        isTrimVideoAvailable = false;
+        return false;
+      }
+      throw importError; // Re-throw if it's a different error
+    }
     
     if (!module) {
       isTrimVideoAvailable = false;
@@ -34,7 +52,7 @@ async function checkTrimVideoAvailability(): Promise<boolean> {
 
     // Check if trimVideo function exists
     if (typeof module.trimVideo !== 'function') {
-      console.warn('⚠️ expo-trim-video module loaded but trimVideo function not available');
+      // Silent fail - this is expected in Expo Go
       isTrimVideoAvailable = false;
       return false;
     }
@@ -44,25 +62,8 @@ async function checkTrimVideoAvailability(): Promise<boolean> {
     console.log('✅ expo-trim-video is available');
     return true;
   } catch (error: any) {
-    // Import failed - native module not available
-    // This is expected in Expo Go
+    // Any other error - log and return false
     const errorMsg = error?.message || String(error) || '';
-    
-    // Check for various error conditions
-    if (
-      errorMsg.includes('Cannot find native module') ||
-      errorMsg.includes('ExpoTrimVideo') ||
-      errorMsg.includes('native module') ||
-      errorMsg.includes('is not a function') ||
-      errorMsg.includes('is undefined') ||
-      error?.code === 'MODULE_NOT_FOUND'
-    ) {
-      console.warn('⚠️ expo-trim-video native module not available (expected in Expo Go)');
-      isTrimVideoAvailable = false;
-      return false;
-    }
-    
-    // Other errors - log and return false
     console.warn('⚠️ expo-trim-video check failed:', errorMsg);
     isTrimVideoAvailable = false;
     return false;
@@ -76,22 +77,27 @@ export function useTrimVideo() {
       const isAvailable = await checkTrimVideoAvailability();
 
       if (!isAvailable || !trimVideoFunction) {
-        // Trim not available - return original URI (silent fallback)
+        // Trim not available - return error
         return {
           uri,
           success: false,
-          error: 'Video trimming requires a development build. Using original video.',
+          error: 'Video trimming requires a development build. Please run: npx expo run:ios or npx expo run:android',
         };
       }
 
       try {
-        // Call trimVideo function
-        const result = await trimVideoFunction({ uri, start, end });
+        // Call trimVideo function according to expo-trim-video API
+        // API: trimVideo({ uri, start, end }) returns { uri: string }
+        const result = await trimVideoFunction({ 
+          uri, 
+          start, // Start time in seconds
+          end    // End time in seconds
+        });
         
-        // Handle different result formats
-        const trimmedUri = result?.uri || result?.outputUri || result?.output || uri;
+        // According to GitHub docs, result is { uri: string }
+        const trimmedUri = result?.uri;
         
-        if (!trimmedUri || trimmedUri === uri) {
+        if (!trimmedUri) {
           // Trim didn't produce a new URI
           return {
             uri,
@@ -100,16 +106,46 @@ export function useTrimVideo() {
           };
         }
         
+        if (trimmedUri === uri) {
+          // Same URI returned - trimming might have failed silently
+          return {
+            uri,
+            success: false,
+            error: 'Video trimming returned the same URI',
+          };
+        }
+        
+        console.log('✅ Video trimmed successfully:', trimmedUri);
         return {
           uri: trimmedUri,
           success: true,
         };
       } catch (trimError: any) {
         console.error('❌ Video trimming failed:', trimError);
+        
+        // Handle specific error codes from expo-trim-video
+        const errorMessage = trimError?.message || String(trimError) || 'Video trimming failed';
+        
+        // Map error codes to user-friendly messages
+        let userFriendlyError = errorMessage;
+        if (errorMessage.includes('INVALID_ARGUMENTS')) {
+          userFriendlyError = 'Invalid video URI or parameters';
+        } else if (errorMessage.includes('INVALID_START')) {
+          userFriendlyError = 'Start time is invalid (must be >= 0)';
+        } else if (errorMessage.includes('INVALID_END')) {
+          userFriendlyError = 'End time exceeds video duration';
+        } else if (errorMessage.includes('INVALID_RANGE')) {
+          userFriendlyError = 'Invalid time range (start must be < end)';
+        } else if (errorMessage.includes('FILE_NOT_FOUND')) {
+          userFriendlyError = 'Video file not found or inaccessible';
+        } else if (errorMessage.includes('TRIM_ERROR')) {
+          userFriendlyError = 'Error during video processing';
+        }
+        
         return {
           uri,
           success: false,
-          error: trimError?.message || 'Video trimming failed',
+          error: userFriendlyError,
         };
       }
     },

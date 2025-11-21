@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTrimVideo } from '../src/hooks/useTrimVideo';
 import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
+import Header from '../src/components/Header';
 
 const schema = z.object({
   name: z
@@ -59,9 +60,9 @@ export default function MetadataScreen() {
     }
 
     try {
-      let finalUri = uri;
+      // Try to trim video - REQUIRED for 5-second segment
+      let finalUri: string | null = null;
 
-      // Try to trim video (optional - will use original if fails)
       try {
         const trimResult = await trimMutation.mutateAsync({
           uri,
@@ -71,19 +72,62 @@ export default function MetadataScreen() {
 
         if (trimResult.success && trimResult.uri) {
           finalUri = trimResult.uri;
-          console.log('✅ Video trimmed successfully');
+          console.log('✅ Video trimmed successfully to 5 seconds');
         } else {
-          // Trim failed, use original video
-          console.log('⚠️ Video trimming unavailable, using original video');
-          finalUri = uri;
+          // Trim failed - show error and don't save
+          const errorMessage = trimResult.error || 'Video trimming failed';
+          console.warn('⚠️ Video trimming unavailable:', errorMessage);
+          
+          // Check if it's a development build issue
+          const isDevelopmentBuildError = errorMessage.includes('development build') || 
+                                         errorMessage.includes('native module') ||
+                                         errorMessage.includes('ExpoTrimVideo');
+          
+          if (isDevelopmentBuildError) {
+            Alert.alert(
+              'Development Build Required',
+              'This app requires video trimming to create 5-second segments.\n\n' +
+              'Video trimming only works in development builds, not in Expo Go.\n\n' +
+              'To use this app:\n' +
+              '1. Stop Expo Go\n' +
+              '2. Run: npx expo run:ios (for iOS)\n' +
+              '   Or: npx expo run:android (for Android)\n' +
+              '3. Wait for the build to complete\n' +
+              '4. The app will open automatically\n\n' +
+              'Note: First build may take 5-10 minutes.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert(
+              'Trimming Failed',
+              'Failed to create a 5-second video segment.\n\n' +
+              'Error: ' + errorMessage + '\n\n' +
+              'Please try again or use a development build.',
+              [{ text: 'OK' }]
+            );
+          }
+          return; // Don't save the video
         }
       } catch (trimError: any) {
-        // Trim failed, use original video
-        console.log('⚠️ Video trimming failed, using original video:', trimError?.message);
-        finalUri = uri;
+        // Trim failed - show error and don't save
+        console.error('❌ Video trimming error:', trimError);
+        
+        Alert.alert(
+          'Trimming Required',
+          'Video trimming is required to create a 5-second segment. ' +
+          'This feature requires a development build. ' +
+          'Error: ' + (trimError?.message || 'Unknown error'),
+          [{ text: 'OK' }]
+        );
+        return; // Don't save the video
       }
 
-      // Save to store (with trimmed URI or original URI)
+      if (!finalUri) {
+        Alert.alert('Error', 'Failed to create trimmed video. Please try again.');
+        return;
+      }
+
+      // Save to store (only trimmed 5-second video)
       const videoId = String(Date.now());
       const videoData = {
         id: videoId,
@@ -93,7 +137,7 @@ export default function MetadataScreen() {
         createdAt: Date.now(),
       };
 
-      console.log('💾 Saving video to database:', videoData);
+      console.log('💾 Saving trimmed 5-second video to database:', videoData);
 
       await addVideo(videoData);
 

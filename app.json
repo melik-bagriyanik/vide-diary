@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select videos.",
         "NSPhotoLibraryAddUsageDescription": "This app needs access to save videos to your photo library."
-      }
+      },
+      "bundleIdentifier": "com.melik90.videodiary"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.melik90.videodiary"
     },
     "web": {
       "output": "static",

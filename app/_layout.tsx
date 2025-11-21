@@ -11,7 +11,22 @@ export default function Layout() {
       'Cannot find native module',
       'ExpoTrimVideo',
       'expo-trim-video',
+      'Cannot find native module \'ExpoTrimVideo\'',
     ]);
+    
+    // Also ignore errors in console
+    const originalError = console.error;
+    console.error = (...args: any[]) => {
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('Cannot find native module') &&
+        message.includes('ExpoTrimVideo')
+      ) {
+        // Suppress this specific error
+        return;
+      }
+      originalError.apply(console, args);
+    };
   }, []);
 
   return (

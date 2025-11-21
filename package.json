@@ -4,9 +4,12 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:dev": "expo start --dev-client",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "android:build": "npx expo run:android",
+    "ios": "expo run:ios",
+    "ios:build": "npx expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },
@@ -38,7 +41,6 @@
     "expo-trim-video": "^1.0.1",
     "expo-video": "~3.0.14",
     "expo-web-browser": "~15.0.9",
-    "ffmpeg-kit-react-native": "^6.0.2",
     "nativewind": "^4.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
