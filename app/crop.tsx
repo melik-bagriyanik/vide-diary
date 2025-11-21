@@ -4,6 +4,7 @@ import Slider from '@react-native-community/slider';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import VideoPlayer, { VideoPlayerRef } from '../src/components/VideoPlayer';
+import Header from '../src/components/Header';
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -188,17 +189,7 @@ export default function CropScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButtonHeader}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Segment</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Select Segment" />
 
       {/* Video Player */}
       <View style={styles.videoContainer}>
@@ -272,29 +263,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButtonHeader: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  headerSpacer: {
-    width: 60,
   },
   videoContainer: {
     paddingHorizontal: 16,
