@@ -18,8 +18,17 @@ import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 
 const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be less than 100 characters')
+    .trim()
+    .refine((val) => val.length > 0, 'Name cannot be empty'),
+  description: z
+    .string()
+    .max(500, 'Description must be less than 500 characters')
+    .optional()
+    .transform((val) => (val?.trim() === '' ? undefined : val?.trim())),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -127,6 +136,7 @@ export default function MetadataScreen() {
                 onChangeText={onChange}
                 onBlur={onBlur}
                 editable={!isProcessing}
+                maxLength={100}
               />
             )}
           />
@@ -143,19 +153,23 @@ export default function MetadataScreen() {
             control={control}
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
-                style={[styles.textInput, styles.textArea]}
+                style={[styles.textInput, styles.textArea, errors.description && styles.inputError]}
                 placeholder="Enter description (optional)"
                 placeholderTextColor="#9ca3af"
-                value={value}
+                value={value || ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
                 editable={!isProcessing}
+                maxLength={500}
               />
             )}
           />
+          {errors.description && (
+            <Text style={styles.errorMessage}>{errors.description.message}</Text>
+          )}
         </View>
 
         {/* Video Info */}
@@ -228,6 +242,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#111827',
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
   },
   inputError: {
     borderColor: '#ef4444',
