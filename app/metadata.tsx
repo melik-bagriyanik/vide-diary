@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTrimVideo } from '../src/hooks/useTrimVideo';
 import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import Header from '../src/components/Header';
 
 const schema = z.object({
@@ -71,8 +72,91 @@ export default function MetadataScreen() {
         });
 
         if (trimResult.success && trimResult.uri) {
-          finalUri = trimResult.uri;
-          console.log('✅ Video trimmed successfully to 5 seconds');
+          // Trimmed video URI from expo-trim-video
+          const trimmedUri = trimResult.uri;
+          console.log('✅ Video trimmed successfully to 5 seconds, URI:', trimmedUri);
+          
+          // Check if the trimmed URI is already in our trimmed_videos directory
+          const trimmedDir = `${FileSystem.documentDirectory}trimmed_videos/`;
+          const isAlreadyInCorrectLocation = trimmedUri.includes('trimmed_videos/');
+          
+          if (isAlreadyInCorrectLocation) {
+            // File is already in the correct location, use it directly
+            console.log('✅ Trimmed video is already in trimmed_videos directory');
+            
+            // Verify file exists
+            try {
+              const verifyInfo = await FileSystem.getInfoAsync(trimmedUri);
+              if (verifyInfo.exists) {
+                console.log('✅ Verified trimmed video exists at location');
+                finalUri = trimmedUri;
+              } else {
+                throw new Error('Trimmed video file not found at location');
+              }
+            } catch (verifyError) {
+              console.error('❌ Error verifying trimmed video:', verifyError);
+              // Will fall through to copy logic below
+            }
+          }
+          
+          // If not already in correct location, or verification failed, copy it
+          if (!finalUri) {
+            try {
+              // Ensure trimmed_videos directory exists
+              try {
+                const dirInfo = await FileSystem.getInfoAsync(trimmedDir);
+                if (!dirInfo.exists) {
+                  await FileSystem.makeDirectoryAsync(trimmedDir, { intermediates: true });
+                  console.log('✅ Created trimmed_videos directory');
+                }
+              } catch (dirError) {
+                // Directory might not exist, try to create it anyway
+                try {
+                  await FileSystem.makeDirectoryAsync(trimmedDir, { intermediates: true });
+                  console.log('✅ Created trimmed_videos directory (after error)');
+                } catch (createError) {
+                  console.error('❌ Error creating directory:', createError);
+                  // Continue anyway, copy might still work
+                }
+              }
+              
+              // Copy trimmed video to permanent location with unique name
+              const fileName = `trimmed_${Date.now()}.mp4`;
+              const permanentUri = `${trimmedDir}${fileName}`;
+              
+              console.log('📋 Copying trimmed video:');
+              console.log('   From:', trimmedUri);
+              console.log('   To:', permanentUri);
+              
+              await FileSystem.copyAsync({
+                from: trimmedUri,
+                to: permanentUri,
+              });
+              
+              // Verify the file was copied successfully
+              const verifyInfo = await FileSystem.getInfoAsync(permanentUri);
+              if (!verifyInfo.exists) {
+                throw new Error('File copy verification failed - file does not exist after copy');
+              }
+              
+              console.log('✅ Trimmed video copied to permanent location:', permanentUri);
+              console.log('✅ File verification passed, file exists:', verifyInfo.exists);
+              
+              // Normalize URI format - ensure it doesn't have double file:// prefix
+              const normalizedUri = permanentUri.replace(/^file:\/\/file:\/\//, 'file://');
+              console.log('💾 Saving normalized URI to database:', normalizedUri);
+              finalUri = normalizedUri;
+            } catch (copyError: any) {
+              console.error('❌ Error copying trimmed video:', copyError);
+              console.error('❌ Copy error details:', {
+                from: trimmedUri,
+                error: copyError,
+              });
+              // Fallback: use original trimmed URI if copy fails (will resolve on load)
+              console.log('⚠️ Using trimmed URI as fallback, will resolve on load');
+              finalUri = trimmedUri;
+            }
+          }
         } else {
           // Trim failed - show error and don't save
           const errorMessage = trimResult.error || 'Video trimming failed';

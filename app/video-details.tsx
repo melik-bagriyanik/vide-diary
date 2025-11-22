@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
 import Header from '@/src/components/Header';
 
 function formatDate(timestamp: number): string {
@@ -33,6 +34,182 @@ export default function VideoDetailsScreen() {
   const removeVideo = useVideoStore((state) => state.removeVideo);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const videoRef = React.useRef<Video>(null);
+
+  // Fix video URI - resolve absolute paths to current document directory
+  useEffect(() => {
+    if (video?.uri) {
+      const fixVideoUri = async () => {
+        let uri = video.uri;
+        console.log('🔍 Checking video URI:', uri);
+        
+        // Remove file:// prefix if present for checking
+        const uriForCheck = uri.replace(/^file:\/\//, '');
+        
+        // Step 1: Try the URI as-is first (might already be correct)
+        try {
+          const directInfo = await FileSystem.getInfoAsync(uri);
+          if (directInfo.exists && !directInfo.isDirectory) {
+            console.log('✅ Video exists at stored URI:', uri);
+            setVideoUri(uri);
+            return;
+          }
+        } catch (e) {
+          console.log('⚠️ Direct URI check failed:', e);
+        }
+        
+        // Step 1b: Try with file:// prefix added if missing
+        if (!uri.startsWith('file://') && !uri.startsWith('http')) {
+          try {
+            const uriWithPrefix = `file://${uri}`;
+            const directInfo2 = await FileSystem.getInfoAsync(uriWithPrefix);
+            if (directInfo2.exists && !directInfo2.isDirectory) {
+              console.log('✅ Video exists with file:// prefix:', uriWithPrefix);
+              setVideoUri(uriWithPrefix);
+              return;
+            }
+          } catch (e) {
+            console.log('⚠️ File:// prefix check failed:', e);
+          }
+        }
+        
+        // Step 2: If it's an absolute path, try to find it in current document directory
+        const isAbsolutePath = uriForCheck.startsWith('/Users/') || 
+                               uriForCheck.startsWith('/var/') || 
+                               uri.includes('/Documents/trimmed_videos/') ||
+                               uri.includes('trimmed_videos/');
+        
+        if (isAbsolutePath) {
+          console.log('⚠️ Absolute path detected, trying to locate in current directory...');
+          
+          // Extract filename from path
+          const fileName = uriForCheck.split('/').pop() || uri.split('/').pop() || `video_${Date.now()}.mp4`;
+          console.log('🔍 Extracted filename:', fileName);
+          
+          // Try trimmed_videos directory (where we save them)
+          const trimmedDir = `${FileSystem.documentDirectory}trimmed_videos/`;
+          const trimmedPath = `${trimmedDir}${fileName}`;
+          
+          try {
+            // Ensure directory exists
+            const dirInfo = await FileSystem.getInfoAsync(trimmedDir);
+            if (!dirInfo.exists) {
+              await FileSystem.makeDirectoryAsync(trimmedDir, { intermediates: true });
+            }
+            
+            // Check if file exists
+            const trimmedInfo = await FileSystem.getInfoAsync(trimmedPath);
+            if (trimmedInfo.exists && !trimmedInfo.isDirectory) {
+              console.log('✅ Found video in trimmed_videos:', trimmedPath);
+              setVideoUri(trimmedPath);
+              return;
+            }
+          } catch (e) {
+            console.log('⚠️ Error checking trimmed_videos:', e);
+          }
+          
+          // Step 3: Try to list all files in trimmed_videos and find by filename
+          try {
+            const trimmedDir = `${FileSystem.documentDirectory}trimmed_videos/`;
+            const dirInfo = await FileSystem.getInfoAsync(trimmedDir);
+            if (dirInfo.exists && dirInfo.isDirectory) {
+              const files = await FileSystem.readDirectoryAsync(trimmedDir);
+              console.log('🔍 Files in trimmed_videos:', files);
+              
+              // Try to find exact match or similar
+              const matchingFile = files.find(f => f === fileName || f.includes(fileName.split('.')[0]));
+              if (matchingFile) {
+                const foundPath = `${trimmedDir}${matchingFile}`;
+                console.log('✅ Found matching file:', foundPath);
+                setVideoUri(foundPath);
+                return;
+              }
+              
+              // Last resort: use most recent file if any exist
+              if (files.length > 0) {
+                const mostRecentFile = files.sort().reverse()[0];
+                const fallbackPath = `${trimmedDir}${mostRecentFile}`;
+                console.log('⚠️ Using most recent file as fallback:', fallbackPath);
+                setVideoUri(fallbackPath);
+                return;
+              }
+            }
+          } catch (e) {
+            console.log('⚠️ Error listing trimmed_videos directory:', e);
+          }
+          
+          // Step 4: Try document directory root
+          try {
+            const docPath = `${FileSystem.documentDirectory}${fileName}`;
+            const docInfo = await FileSystem.getInfoAsync(docPath);
+            if (docInfo.exists && !docInfo.isDirectory) {
+              console.log('✅ Found video in document directory:', docPath);
+              setVideoUri(docPath);
+              return;
+            }
+          } catch (e) {
+            console.log('⚠️ Error checking document directory:', e);
+          }
+          
+          // If we get here, file was not found
+          console.error('❌ Video file not found anywhere');
+          console.error('❌ Original URI:', uri);
+          console.error('❌ Extracted filename:', fileName);
+          console.error('❌ Current document directory:', FileSystem.documentDirectory);
+          console.error('❌ Tried paths:');
+          console.error('   - Direct:', uri);
+          console.error('   - With file://:', uri.startsWith('file://') ? 'already had prefix' : `file://${uri}`);
+          console.error('   - Trimmed videos:', `${FileSystem.documentDirectory}trimmed_videos/${fileName}`);
+          console.error('   - Document root:', `${FileSystem.documentDirectory}${fileName}`);
+          
+          // Show user-friendly error
+          Alert.alert(
+            'Video Not Found',
+            'The video file could not be found. It may have been deleted or moved.\n\nPlease try adding the video again.',
+            [{ text: 'OK', onPress: () => router.replace('/') }]
+          );
+          
+          setIsLoading(false);
+          setVideoUri(null);
+        } else {
+          // Relative path, cache directory, HTTP, or other format
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(uri);
+            if (fileInfo.exists) {
+              console.log('✅ Video file exists:', uri);
+              setVideoUri(uri);
+            } else {
+              // Might be HTTP or other format - try as is
+              console.log('⚠️ File check failed, using URI as-is (might be HTTP/other):', uri);
+              setVideoUri(uri);
+            }
+          } catch (error) {
+            // If getInfoAsync fails, try using the URI as is (might be HTTP or other format)
+            console.log('⚠️ Could not check file, using URI as is:', uri);
+            setVideoUri(uri);
+          }
+        }
+      };
+      
+      fixVideoUri();
+    } else {
+      setIsLoading(false);
+      setVideoUri(null);
+    }
+  }, [video?.uri]);
+
+  // Timeout fallback - eğer video 5 saniye içinde yüklenmezse loading'i kaldır
+  useEffect(() => {
+    if (video && isLoading && videoUri) {
+      const timeout = setTimeout(() => {
+        console.log('⚠️ Video loading timeout, hiding loading overlay');
+        setIsLoading(false);
+      }, 5000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [video, isLoading, videoUri]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -89,19 +266,33 @@ export default function VideoDetailsScreen() {
             <Text style={styles.loadingText}>Loading video...</Text>
           </View>
         )}
-        <Video
-          source={{ uri: video.uri }}
-          style={styles.videoPlayer}
-          resizeMode={ResizeMode.CONTAIN}
-          useNativeControls
-          onLoad={() => {
-            setIsLoading(false);
-          }}
-          onError={(error) => {
-            console.error('Video error:', error);
-            setIsLoading(false);
-          }}
-        />
+        {videoUri ? (
+          <Video
+            ref={videoRef}
+            source={{ uri: videoUri }}
+            style={styles.videoPlayer}
+            resizeMode={ResizeMode.CONTAIN}
+            useNativeControls
+            onLoad={(status: AVPlaybackStatus) => {
+              console.log('📌 Video onLoad fired:', status);
+              if (status.isLoaded) {
+                setIsLoading(false);
+              }
+            }}
+            onReadyForDisplay={() => {
+              console.log('📌 Video onReadyForDisplay fired');
+              setIsLoading(false);
+            }}
+            onError={(error) => {
+              console.error('Video error:', error);
+              setIsLoading(false);
+            }}
+          />
+        ) : (
+          <View style={styles.videoPlayer}>
+            <Text style={styles.errorText}>Video file not found</Text>
+          </View>
+        )}
       </View>
 
       {/* Details */}
