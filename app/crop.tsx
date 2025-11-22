@@ -84,6 +84,16 @@ export default function CropScreen() {
   const segmentDuration = 5; // 5 seconds fixed
   const maxStartTime = Math.max(0, duration - segmentDuration);
   const endTime = Math.min(startTime + segmentDuration, duration);
+  
+  // Slider track range (where thumb can move)
+  const sliderTrackRange = Math.max(0, duration - segmentDuration);
+  
+  // Calculate segment position and width based on FULL video duration
+  // This ensures the segment is always exactly 5 seconds visually
+  // Position: Based on startTime in full duration
+  const segmentStartPercentage = duration > 0 ? (startTime / duration) * 100 : 0;
+  // Width: Always 5 seconds out of total duration (5 / duration * 100%)
+  const segmentWidthPercentage = duration > 0 ? (segmentDuration / duration) * 100 : 0;
 
   useEffect(() => {
     if (startTime > maxStartTime) {
@@ -223,18 +233,68 @@ export default function CropScreen() {
 
         {/* Scrubber */}
         <View style={styles.sliderContainer}>
-          <Slider
-            minimumValue={0}
-            maximumValue={Math.max(0, duration - segmentDuration)}
-            value={startTime}
-            onValueChange={handleSliderChange}
-            minimumTrackTintColor="#3b82f6"
-            maximumTrackTintColor="#e5e7eb"
-            thumbTintColor="#3b82f6"
-            step={0.1}
-          />
+          <View style={styles.sliderWrapper}>
+            {/* Background track showing selected segment - based on full video duration */}
+            {duration > 0 && (
+              <View style={styles.sliderTrackBackground} pointerEvents="none">
+                {/* Unselected portion before selected segment */}
+                {segmentStartPercentage > 0 && (
+                  <View
+                    style={[
+                      styles.sliderTrackSegment,
+                      styles.sliderTrackUnselected,
+                      {
+                        width: `${segmentStartPercentage}%`,
+                      },
+                    ]}
+                  />
+                )}
+                {/* Selected 5-second portion - starts exactly where thumb is */}
+                <View
+                  style={[
+                    styles.sliderTrackSegment,
+                    styles.sliderTrackSelected,
+                    {
+                      width: `${segmentWidthPercentage}%`,
+                    },
+                  ]}
+                />
+                {/* Unselected portion after selected segment */}
+                {(segmentStartPercentage + segmentWidthPercentage) < 100 && (
+                  <View
+                    style={[
+                      styles.sliderTrackSegment,
+                      styles.sliderTrackUnselected,
+                      {
+                        width: `${100 - (segmentStartPercentage + segmentWidthPercentage)}%`,
+                      },
+                    ]}
+                  />
+                )}
+              </View>
+            )}
+            <Slider
+              minimumValue={0}
+              maximumValue={duration}
+              value={startTime}
+              onValueChange={(value) => {
+                // Clamp to prevent going past end (maxStartTime = duration - 5 seconds)
+                const clampedValue = Math.min(value, maxStartTime);
+                handleSliderChange(clampedValue);
+              }}
+              minimumTrackTintColor="transparent"
+              maximumTrackTintColor="transparent"
+              thumbTintColor="#3b82f6"
+              step={0.1}
+            />
+          </View>
           <View style={styles.sliderLabels}>
             <Text style={styles.sliderLabelText}>{formatTime(0)}</Text>
+            <View style={styles.sliderSelectedRange}>
+              <Text style={styles.sliderSelectedRangeText}>
+                {formatTime(startTime)} - {formatTime(endTime)}
+              </Text>
+            </View>
             <Text style={styles.sliderLabelText}>{formatTime(duration)}</Text>
           </View>
         </View>
@@ -297,14 +357,64 @@ const styles = StyleSheet.create({
   sliderContainer: {
     marginTop: 16,
   },
+  sliderWrapper: {
+    position: 'relative',
+    height: 40,
+    justifyContent: 'center',
+  },
+  sliderTrackBackground: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    height: 6,
+    flexDirection: 'row',
+    top: '50%',
+    marginTop: -3,
+    zIndex: 0,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  sliderTrackSegment: {
+    height: '100%',
+  },
+  sliderTrackSelected: {
+    backgroundColor: '#3b82f6',
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderLeftColor: '#2563eb',
+    borderRightColor: '#2563eb',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sliderTrackUnselected: {
+    backgroundColor: '#e5e7eb',
+  },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 10,
   },
   sliderLabelText: {
     fontSize: 12,
     color: '#9ca3af',
+  },
+  sliderSelectedRange: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  sliderSelectedRangeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2563eb',
   },
   previewButton: {
     marginTop: 24,

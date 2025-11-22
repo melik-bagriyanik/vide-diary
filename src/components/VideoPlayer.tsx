@@ -1,6 +1,6 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
-import { Video, AVPlaybackStatus, ResizeMode } from 'expo-av';
+import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 interface VideoPlayerProps {
   uri: string;
@@ -66,18 +66,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             },
     }));
 
-    // Manual status check after 1.5 seconds
+    // Manual status check after 1.5 seconds (fallback if onLoad doesn't fire)
     useEffect(() => {
       if (!videoRef.current || !uri) return;
+      
+      // Skip manual check if video is already loaded
+      if (hasLoadedDuration) return;
 
       const timeout = setTimeout(async () => {
         try {
           const status = await videoRef.current?.getStatusAsync();
-          console.log('📌📌📌 Manual Status Check:', JSON.stringify(status, null, 2));
           
           if (status?.isLoaded) {
             const durationMillis = status.durationMillis;
-            console.log('📌 Manual status - durationMillis:', durationMillis);
             
             if (durationMillis && durationMillis > 0 && durationMillis !== Infinity && !isNaN(durationMillis)) {
               const durationSeconds = durationMillis / 1000;
@@ -87,10 +88,17 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
               setHasLoadedDuration(true);
               onLoad?.({ duration: durationSeconds });
             } else {
-              console.warn('⚠️ Manual status check: durationMillis is invalid:', durationMillis);
+              // Duration not available but video is loaded - might still be loading metadata
+              console.log('📌 Manual status check: video is loaded but duration not available yet');
             }
           } else {
-            console.warn('⚠️ Manual status check: video is not loaded, error:', status?.error);
+            // Video not loaded yet - only warn if there's an actual error
+            if (status?.error) {
+              console.warn('⚠️ Manual status check: video loading error:', status.error);
+            } else {
+              // No error, just not loaded yet - this is normal, don't warn
+              console.log('📌 Manual status check: video still loading...');
+            }
           }
         } catch (e) {
           console.error('⛔ Status Error:', e);
@@ -98,7 +106,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }, 1500);
 
       return () => clearTimeout(timeout);
-    }, [uri, onLoad]);
+    }, [uri, onLoad, hasLoadedDuration]);
 
     // Handle onLoad - this is called when video metadata is loaded
     const handleLoad = (status: AVPlaybackStatus) => {

@@ -267,12 +267,12 @@ export default function VideoDetailsScreen() {
           </View>
         )}
         {videoUri ? (
-          <Video
+        <Video
             ref={videoRef}
             source={{ uri: videoUri }}
-            style={styles.videoPlayer}
-            resizeMode={ResizeMode.CONTAIN}
-            useNativeControls
+          style={styles.videoPlayer}
+          resizeMode={ResizeMode.CONTAIN}
+          useNativeControls
             onLoad={(status: AVPlaybackStatus) => {
               console.log('📌 Video onLoad fired:', status);
               if (status.isLoaded) {
@@ -281,13 +281,13 @@ export default function VideoDetailsScreen() {
             }}
             onReadyForDisplay={() => {
               console.log('📌 Video onReadyForDisplay fired');
-              setIsLoading(false);
-            }}
-            onError={(error) => {
-              console.error('Video error:', error);
-              setIsLoading(false);
-            }}
-          />
+            setIsLoading(false);
+          }}
+          onError={(error) => {
+            console.error('Video error:', error);
+            setIsLoading(false);
+          }}
+        />
         ) : (
           <View style={styles.videoPlayer}>
             <Text style={styles.errorText}>Video file not found</Text>
