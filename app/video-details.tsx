@@ -358,6 +358,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  errorText: {
+    color: '#ffffff',
+    fontSize: 16,
+    textAlign: 'center',
+    padding: 20,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

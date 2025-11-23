@@ -25,10 +25,9 @@ const schema = z.object({
     .trim()
     .refine((val) => val.length > 0, 'Name cannot be empty'),
   description: z
-    .string()
-    .max(500, 'Description must be less than 500 characters')
-    .optional()
-    .transform((val) => (val?.trim() === '' ? undefined : val?.trim())),
+    .union([z.string().max(500, 'Description must be less than 500 characters'), z.literal('')])
+    .transform((val) => (val === '' ? undefined : val.trim()))
+    .optional(),
 });
 
 type FormData = z.infer<typeof schema>;
