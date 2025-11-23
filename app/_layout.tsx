@@ -3,9 +3,15 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../src/lib/queryClient';
 import { useEffect } from 'react';
 import { LogBox } from 'react-native';
+import { initDatabase } from '../src/lib/database';
 
 export default function Layout() {
   useEffect(() => {
+    // Initialize database on app startup
+    initDatabase().catch((error) => {
+      console.error('❌ Failed to initialize database on app startup:', error);
+    });
+
     // Suppress expo-trim-video native module errors in Expo Go
     LogBox.ignoreLogs([
       'Cannot find native module',
