@@ -12,31 +12,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
-
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
-  } else if (diffInSeconds < 86400) {
-    const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  } else if (diffInSeconds < 604800) {
-    const days = Math.floor(diffInSeconds / 86400);
-    return `${days} ${days === 1 ? 'day' : 'days'} ago`;
-  } else {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-    });
-  }
-}
+import { formatRelativeDate } from '@/src/utils/dateUtils';
 
 export default function VideoListScreen() {
   const router = useRouter();
@@ -97,7 +73,7 @@ export default function VideoListScreen() {
         ) : null}
         <View style={styles.metadataRow}>
           <Ionicons name="time-outline" size={14} color="#9ca3af" />
-          <Text style={styles.videoDate}>{formatDate(item.createdAt)}</Text>
+          <Text style={styles.videoDate}>{formatRelativeDate(item.createdAt)}</Text>
         </View>
       </View>
 

@@ -2,35 +2,22 @@ import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../src/components/Header';
+import MetadataForm from '../src/components/metadata/MetadataForm';
+import { metadataSchema, type MetadataFormData } from '../src/schemas/metadataSchema';
 
-const schema = z.object({
-  name: z
-    .string()
-    .min(1, 'Name is required')
-    .max(100, 'Name must be less than 100 characters')
-    .trim()
-    .refine((val) => val.length > 0, 'Name cannot be empty'),
-  description: z
-    .union([z.string().max(500, 'Description must be less than 500 characters'), z.literal('')])
-    .transform((val) => (val === '' ? undefined : val.trim()))
-    .optional(),
-});
-
-type FormData = z.infer<typeof schema>;
+type FormData = MetadataFormData;
 
 export default function EditVideoScreen() {
   const params = useLocalSearchParams();
@@ -45,7 +32,7 @@ export default function EditVideoScreen() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(metadataSchema),
     defaultValues: {
       name: video?.name || '',
       description: video?.description || '',
@@ -102,58 +89,7 @@ export default function EditVideoScreen() {
       <Header title="Edit Video" />
 
       <View style={styles.formContainer}>
-        {/* Name Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>
-            Name <Text style={styles.requiredIndicator}>*</Text>
-          </Text>
-          <Controller
-            name="name"
-            control={control}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[styles.textInput, errors.name && styles.inputError]}
-                placeholder="Enter video name"
-                placeholderTextColor="#9ca3af"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                editable={!isSaving}
-                maxLength={100}
-              />
-            )}
-          />
-          {errors.name && (
-            <Text style={styles.errorMessage}>{errors.name.message}</Text>
-          )}
-        </View>
-
-        {/* Description Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Description</Text>
-          <Controller
-            name="description"
-            control={control}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[styles.textInput, styles.textArea, errors.description && styles.inputError]}
-                placeholder="Enter description (optional)"
-                placeholderTextColor="#9ca3af"
-                value={value || ''}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                editable={!isSaving}
-                maxLength={500}
-              />
-            )}
-          />
-          {errors.description && (
-            <Text style={styles.errorMessage}>{errors.description.message}</Text>
-          )}
-        </View>
+        <MetadataForm control={control} errors={errors} disabled={isSaving} />
       </View>
 
       {/* Action Button */}
@@ -186,41 +122,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 24,
     gap: 24,
-  },
-  inputGroup: {
-    marginBottom: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  requiredIndicator: {
-    color: '#ef4444',
-  },
-  textInput: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  inputError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  errorMessage: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 4,
   },
   actionButtonContainer: {
     paddingHorizontal: 24,

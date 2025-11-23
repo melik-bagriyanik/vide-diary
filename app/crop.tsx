@@ -1,16 +1,15 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
-import Slider from '@react-native-community/slider';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system/legacy';
 import VideoPlayer, { VideoPlayerRef } from '../src/components/VideoPlayer';
 import Header from '../src/components/Header';
+import TimeDisplay from '../src/components/crop/TimeDisplay';
+import VideoScrubber from '../src/components/crop/VideoScrubber';
+import LoadingScreen from '../src/components/crop/LoadingScreen';
+import ErrorScreen from '../src/components/crop/ErrorScreen';
+import { useVideoPersistence } from '../src/hooks/useVideoPersistence';
 
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
+const SEGMENT_DURATION = 5; // 5 seconds fixed
 
 export default function CropScreen() {
   const params = useLocalSearchParams();
@@ -18,82 +17,13 @@ export default function CropScreen() {
   const originalUri = params.uri as string;
   const videoRef = useRef<VideoPlayerRef>(null);
 
-  const [finalUri, setFinalUri] = useState<string | null>(null);
+  const { finalUri, isLoading, error, isCopying } = useVideoPersistence(originalUri);
   const [duration, setDuration] = useState(0);
   const [currentPosition, setCurrentPosition] = useState(0);
   const [startTime, setStartTime] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isCopying, setIsCopying] = useState(false);
 
-  // Copy video to app cache to prevent Android URI deletion issue
-  useEffect(() => {
-    async function persistVideo() {
-      if (!originalUri) {
-        setError('No video URI provided');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('✂️ Crop Screen Original URI =>', originalUri);
-      console.log('✂️ URI Format =>', {
-        isFile: originalUri?.startsWith('file://'),
-        isContent: originalUri?.startsWith('content://'),
-        isHttp: originalUri?.startsWith('http'),
-        isPh: originalUri?.startsWith('ph://'),
-        firstChars: originalUri?.substring(0, 30),
-      });
-
-      // For HTTP URLs, use directly
-      if (originalUri.startsWith('http')) {
-        console.log('✅ Using HTTP URL directly');
-        setFinalUri(originalUri);
-        setIsLoading(false);
-        return;
-      }
-
-      // For local files, copy to app cache to prevent deletion
-      try {
-        setIsCopying(true);
-        const fileName = originalUri.split('/').pop() || 'video.mp4';
-        const cacheUri = `${FileSystem.cacheDirectory}persistent_${Date.now()}_${fileName}`;
-        
-        console.log('📦 Copying video to cache:', cacheUri);
-        await FileSystem.copyAsync({
-          from: originalUri,
-          to: cacheUri,
-        });
-
-        console.log('✅ Video copied to cache successfully');
-        setFinalUri(cacheUri);
-        setIsCopying(false);
-        setIsLoading(false);
-      } catch (copyError: any) {
-        console.error('❌ Error copying video to cache:', copyError);
-        // Fallback: try using original URI
-        console.log('⚠️ Falling back to original URI');
-        setFinalUri(originalUri);
-        setIsCopying(false);
-        setIsLoading(false);
-      }
-    }
-
-    persistVideo();
-  }, [originalUri]);
-
-  const segmentDuration = 5; // 5 seconds fixed
-  const maxStartTime = Math.max(0, duration - segmentDuration);
-  const endTime = Math.min(startTime + segmentDuration, duration);
-  
-  // Slider track range (where thumb can move)
-  const sliderTrackRange = Math.max(0, duration - segmentDuration);
-  
-  // Calculate segment position and width based on FULL video duration
-  // This ensures the segment is always exactly 5 seconds visually
-  // Position: Based on startTime in full duration
-  const segmentStartPercentage = duration > 0 ? (startTime / duration) * 100 : 0;
-  // Width: Always 5 seconds out of total duration (5 / duration * 100%)
-  const segmentWidthPercentage = duration > 0 ? (segmentDuration / duration) * 100 : 0;
+  const maxStartTime = Math.max(0, duration - SEGMENT_DURATION);
+  const endTime = Math.min(startTime + SEGMENT_DURATION, duration);
 
   useEffect(() => {
     if (startTime > maxStartTime) {
@@ -103,19 +33,12 @@ export default function CropScreen() {
 
   const handleLoad = (data: { duration: number }) => {
     if (data.duration > 0) {
-      console.log('✅ Video loaded in crop screen, duration:', data.duration);
       setDuration(data.duration);
-      setIsLoading(false);
-      setError(null);
-    } else {
-      console.warn('⚠️ handleLoad called but duration is 0 or invalid');
     }
   };
 
   const handleVideoError = (errorMsg: string) => {
     console.error('❌ Video error in crop screen:', errorMsg);
-    setError(errorMsg);
-    setIsLoading(false);
   };
 
   const handleProgress = (data: { position: number }) => {
@@ -125,8 +48,6 @@ export default function CropScreen() {
   const handleSliderChange = async (value: number) => {
     const clampedValue = Math.min(value, maxStartTime);
     setStartTime(clampedValue);
-
-    // Update video position
     if (videoRef.current) {
       await videoRef.current.setPositionAsync(clampedValue);
     }
@@ -136,12 +57,11 @@ export default function CropScreen() {
     if (videoRef.current) {
       await videoRef.current.setPositionAsync(startTime);
       await videoRef.current.playAsync();
-      // Stop after 5 seconds
       setTimeout(async () => {
         if (videoRef.current) {
           await videoRef.current.pauseAsync();
         }
-      }, segmentDuration * 1000);
+      }, SEGMENT_DURATION * 1000);
     }
   };
 
@@ -157,51 +77,27 @@ export default function CropScreen() {
   };
 
   if (isCopying) {
-    return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Preparing video...</Text>
-      </View>
-    );
+    return <LoadingScreen message="Preparing video..." />;
   }
 
   if (isLoading && !error && finalUri) {
-    return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading video...</Text>
-        {finalUri && (
-          <Text style={styles.loadingUri} numberOfLines={1}>
-            URI: {finalUri.length > 50 ? finalUri.substring(0, 50) + '...' : finalUri}
-          </Text>
-        )}
-      </View>
-    );
+    return <LoadingScreen message="Loading video..." uri={finalUri} />;
   }
 
   if (error || !finalUri) {
     return (
-      <View style={styles.errorScreen}>
-        <Text style={styles.errorTitle}>⚠️ Error Loading Video</Text>
-        <Text style={styles.errorMessage}>{error || 'No video URI provided'}</Text>
-        {originalUri && (
-          <Text style={styles.errorUri} numberOfLines={2}>
-            Original URI: {originalUri}
-          </Text>
-        )}
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ErrorScreen
+        title="⚠️ Error Loading Video"
+        message={error || 'No video URI provided'}
+        originalUri={originalUri}
+      />
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Header title="Select Segment" />
 
-      {/* Video Player */}
       <View style={styles.videoContainer}>
         <VideoPlayer
           ref={videoRef}
@@ -212,100 +108,22 @@ export default function CropScreen() {
         />
       </View>
 
-      {/* Time Display */}
       <View style={styles.timeContainer}>
-        <View style={styles.timeRow}>
-          <View style={styles.timeItem}>
-            <Text style={styles.timeLabel}>Start</Text>
-            <Text style={styles.timeValue}>{formatTime(startTime)}</Text>
-          </View>
-          <View style={styles.timeItem}>
-            <Text style={styles.timeLabel}>End</Text>
-            <Text style={styles.timeValue}>{formatTime(endTime)}</Text>
-          </View>
-          <View style={styles.timeItem}>
-            <Text style={styles.timeLabel}>Duration</Text>
-            <Text style={[styles.timeValue, styles.durationValue]}>
-              {formatTime(segmentDuration)}
-            </Text>
-          </View>
-        </View>
+        <TimeDisplay startTime={startTime} endTime={endTime} segmentDuration={SEGMENT_DURATION} />
 
-        {/* Scrubber */}
-        <View style={styles.sliderContainer}>
-          <View style={styles.sliderWrapper}>
-            {/* Background track showing selected segment - based on full video duration */}
-            {duration > 0 && (
-              <View style={styles.sliderTrackBackground} pointerEvents="none">
-                {/* Unselected portion before selected segment */}
-                {segmentStartPercentage > 0 && (
-                  <View
-                    style={[
-                      styles.sliderTrackSegment,
-                      styles.sliderTrackUnselected,
-                      {
-                        width: `${segmentStartPercentage}%`,
-                      },
-                    ]}
-                  />
-                )}
-                {/* Selected 5-second portion - starts exactly where thumb is */}
-                <View
-                  style={[
-                    styles.sliderTrackSegment,
-                    styles.sliderTrackSelected,
-                    {
-                      width: `${segmentWidthPercentage}%`,
-                    },
-                  ]}
-                />
-                {/* Unselected portion after selected segment */}
-                {(segmentStartPercentage + segmentWidthPercentage) < 100 && (
-                  <View
-                    style={[
-                      styles.sliderTrackSegment,
-                      styles.sliderTrackUnselected,
-                      {
-                        width: `${100 - (segmentStartPercentage + segmentWidthPercentage)}%`,
-                      },
-                    ]}
-                  />
-                )}
-              </View>
-            )}
-            <Slider
-              minimumValue={0}
-              maximumValue={duration}
-              value={startTime}
-              onValueChange={(value) => {
-                // Clamp to prevent going past end (maxStartTime = duration - 5 seconds)
-                const clampedValue = Math.min(value, maxStartTime);
-                handleSliderChange(clampedValue);
-              }}
-              minimumTrackTintColor="transparent"
-              maximumTrackTintColor="transparent"
-              thumbTintColor="#3b82f6"
-              step={0.1}
-            />
-          </View>
-          <View style={styles.sliderLabels}>
-            <Text style={styles.sliderLabelText}>{formatTime(0)}</Text>
-            <View style={styles.sliderSelectedRange}>
-              <Text style={styles.sliderSelectedRangeText}>
-                {formatTime(startTime)} - {formatTime(endTime)}
-              </Text>
-            </View>
-            <Text style={styles.sliderLabelText}>{formatTime(duration)}</Text>
-          </View>
-        </View>
+        <VideoScrubber
+          duration={duration}
+          startTime={startTime}
+          segmentDuration={SEGMENT_DURATION}
+          maxStartTime={maxStartTime}
+          onValueChange={handleSliderChange}
+        />
 
-        {/* Preview Button */}
         <TouchableOpacity onPress={handlePreview} style={styles.previewButton}>
           <Text style={styles.previewButtonText}>▶ Preview Segment</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Action Button */}
       <View style={styles.actionButtonContainer}>
         <TouchableOpacity
           onPress={handleProceed}
@@ -331,90 +149,6 @@ const styles = StyleSheet.create({
   timeContainer: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  timeItem: {
-    alignItems: 'center',
-  },
-  timeLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  timeValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  durationValue: {
-    color: '#2563eb',
-  },
-  sliderContainer: {
-    marginTop: 16,
-  },
-  sliderWrapper: {
-    position: 'relative',
-    height: 40,
-    justifyContent: 'center',
-  },
-  sliderTrackBackground: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    height: 6,
-    flexDirection: 'row',
-    top: '50%',
-    marginTop: -3,
-    zIndex: 0,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  sliderTrackSegment: {
-    height: '100%',
-  },
-  sliderTrackSelected: {
-    backgroundColor: '#3b82f6',
-    borderLeftWidth: 2,
-    borderRightWidth: 2,
-    borderLeftColor: '#2563eb',
-    borderRightColor: '#2563eb',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sliderTrackUnselected: {
-    backgroundColor: '#e5e7eb',
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 10,
-  },
-  sliderLabelText: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  sliderSelectedRange: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-  },
-  sliderSelectedRangeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2563eb',
   },
   previewButton: {
     marginTop: 24,
@@ -456,61 +190,5 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: '#9ca3af',
-  },
-  loadingScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  loadingUri: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-  errorScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 24,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#dc2626',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#b91c1c',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  errorUri: {
-    fontSize: 12,
-    color: '#991b1b',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  backButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
   },
 });
