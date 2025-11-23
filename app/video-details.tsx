@@ -30,10 +30,15 @@ export default function VideoDetailsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-              setIsDeleting(true);
+            setIsDeleting(true);
+            // Navigate immediately to prevent "not found" flash
+            router.replace('/');
+            // Remove video in background after navigation
+            try {
               await removeVideo(video.id);
-              await new Promise((resolve) => setTimeout(resolve, 300));
-              router.replace('/');
+            } catch (error) {
+              console.error('Error deleting video:', error);
+            }
           },
         },
       ]
@@ -43,6 +48,16 @@ export default function VideoDetailsScreen() {
   const handleEdit = () => {
     router.push(`/edit-video?id=${videoId}`);
   };
+
+  // Show loading state if deleting to prevent "not found" flash
+  if (isDeleting) {
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="trash-outline" size={64} color="#d1d5db" />
+        <Text style={styles.emptyTitle}>Deleting...</Text>
+      </View>
+    );
+  }
 
   if (!video) {
     return (
