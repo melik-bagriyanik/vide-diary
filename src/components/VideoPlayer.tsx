@@ -1,12 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface VideoPlayerProps {
   uri: string;
   onLoad?: (data: { duration: number }) => void;
   onProgress?: (data: { position: number }) => void;
   onError?: (error: string) => void;
+  showPlayButton?: boolean;
 }
 
 export type VideoPlayerRef = {
@@ -16,12 +18,22 @@ export type VideoPlayerRef = {
 };
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ uri, onLoad, onProgress, onError }, ref) => {
+  ({ uri, onLoad, onProgress, onError, showPlayButton = false }, ref) => {
     const videoRef = useRef<Video>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [hasLoadedDuration, setHasLoadedDuration] = useState(false);
     const [isReadyForDisplay, setIsReadyForDisplay] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [showPlayOverlay, setShowPlayOverlay] = useState(showPlayButton);
+
+    useEffect(() => {
+      if (showPlayButton && !isPlaying) {
+        setShowPlayOverlay(true);
+      } else if (!showPlayButton) {
+        setShowPlayOverlay(false);
+      }
+    }, [showPlayButton, isPlaying]);
 
     console.log('🎬🎬🎬 VideoPlayer component RENDERED, URI:', uri);
     console.log('🎬 URI Format Check =>', {
@@ -37,6 +49,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         console.log('▶️ playAsync called');
         try {
           await videoRef.current?.playAsync();
+          setIsPlaying(true);
+          setShowPlayOverlay(false);
         } catch (e) {
           console.error('❌ Error in playAsync:', e);
         }
@@ -45,6 +59,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         console.log('⏸️ pauseAsync called');
         try {
           await videoRef.current?.pauseAsync();
+          setIsPlaying(false);
+          if (showPlayButton) {
+            setShowPlayOverlay(true);
+          }
         } catch (e) {
           console.error('❌ Error in pauseAsync:', e);
         }
@@ -163,6 +181,16 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         const positionSeconds = status.positionMillis / 1000;
         onProgress?.({ position: positionSeconds });
 
+        // Update playing state
+        if (status.isPlaying !== isPlaying) {
+          setIsPlaying(status.isPlaying);
+          if (status.isPlaying) {
+            setShowPlayOverlay(false);
+          } else if (showPlayButton && !status.didJustFinish) {
+            setShowPlayOverlay(true);
+          }
+        }
+
         // Check if we have duration and haven't called onLoad yet
         const durationMillis = status.durationMillis;
         if (!hasLoadedDuration && durationMillis && durationMillis > 0 && durationMillis !== Infinity && !isNaN(durationMillis)) {
@@ -179,6 +207,14 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         setError(errorMsg);
         setIsLoading(false);
         onError?.(errorMsg);
+      }
+    };
+
+    const handlePlayPress = async () => {
+      if (videoRef.current) {
+        await videoRef.current.playAsync();
+        setIsPlaying(true);
+        setShowPlayOverlay(false);
       }
     };
 
@@ -230,6 +266,17 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           }}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         />
+        {showPlayOverlay && !isLoading && !error && (
+          <TouchableOpacity
+            style={styles.playButtonOverlay}
+            onPress={handlePlayPress}
+            activeOpacity={0.8}
+          >
+            <View style={styles.playButton}>
+              <Ionicons name="play" size={48} color="#ffffff" />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -282,6 +329,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 8,
     textAlign: 'center',
+  },
+  playButtonOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(37, 99, 235, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 

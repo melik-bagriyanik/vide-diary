@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 
 interface VideoPlayerWrapperProps {
   uri: string | null;
@@ -9,6 +10,8 @@ interface VideoPlayerWrapperProps {
 export default function VideoPlayerWrapper({ uri }: VideoPlayerWrapperProps) {
   const videoRef = useRef<Video>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showPlayOverlay, setShowPlayOverlay] = useState(true);
 
   useEffect(() => {
     if (uri && isLoading) {
@@ -18,6 +21,27 @@ export default function VideoPlayerWrapper({ uri }: VideoPlayerWrapperProps) {
       return () => clearTimeout(timeout);
     }
   }, [uri, isLoading]);
+
+  const handlePlayPress = async () => {
+    if (videoRef.current) {
+      await videoRef.current.playAsync();
+      setIsPlaying(true);
+      setShowPlayOverlay(false);
+    }
+  };
+
+  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      if (status.isPlaying !== isPlaying) {
+        setIsPlaying(status.isPlaying);
+        if (status.isPlaying) {
+          setShowPlayOverlay(false);
+        } else if (!status.didJustFinish) {
+          setShowPlayOverlay(true);
+        }
+      }
+    }
+  };
 
   if (!uri) {
     return (
@@ -52,7 +76,19 @@ export default function VideoPlayerWrapper({ uri }: VideoPlayerWrapperProps) {
         onError={() => {
           setIsLoading(false);
         }}
+        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
       />
+      {showPlayOverlay && !isLoading && (
+        <TouchableOpacity
+          style={styles.playButtonOverlay}
+          onPress={handlePlayPress}
+          activeOpacity={0.8}
+        >
+          <View style={styles.playButton}>
+            <Ionicons name="play" size={48} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -85,5 +121,25 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#ffffff',
+  },
+  playButtonOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(37, 99, 235, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

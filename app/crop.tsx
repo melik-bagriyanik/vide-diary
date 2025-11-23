@@ -55,18 +55,6 @@ export default function CropScreen() {
     }
   };
 
-  const handlePreview = async () => {
-    if (videoRef.current) {
-      await videoRef.current.setPositionAsync(startTime);
-      await videoRef.current.playAsync();
-      setTimeout(async () => {
-        if (videoRef.current) {
-          await videoRef.current.pauseAsync();
-        }
-      }, SEGMENT_DURATION * 1000);
-    }
-  };
-
   const handleProceed = () => {
     router.push({
       pathname: '/metadata',
@@ -110,6 +98,7 @@ export default function CropScreen() {
           onLoad={handleLoad}
           onProgress={handleProgress}
           onError={handleVideoError}
+          showPlayButton={true}
         />
       </Animated.View>
 
@@ -126,15 +115,6 @@ export default function CropScreen() {
           maxStartTime={maxStartTime}
           onValueChange={handleSliderChange}
         />
-
-        <AnimatedButton
-          variant="outline"
-          size="medium"
-          onPress={handlePreview}
-          entering={FadeInDown.delay(300).duration(400)}
-        >
-          <Text style={styles.previewButtonText}>▶ Preview Segment</Text>
-        </AnimatedButton>
       </Animated.View>
 
       <View style={styles.actionButtonContainer}>
@@ -163,11 +143,6 @@ const styles = StyleSheet.create({
   timeContainer: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-  },
-  previewButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
   },
   actionButtonContainer: {
     flex: 1,
