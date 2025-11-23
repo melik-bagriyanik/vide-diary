@@ -9,6 +9,7 @@ interface VideoPlayerProps {
   onProgress?: (data: { position: number }) => void;
   onError?: (error: string) => void;
   showPlayButton?: boolean;
+  onPlayStateChange?: (isPlaying: boolean) => void;
 }
 
 export type VideoPlayerRef = {
@@ -18,7 +19,7 @@ export type VideoPlayerRef = {
 };
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ uri, onLoad, onProgress, onError, showPlayButton = false }, ref) => {
+  ({ uri, onLoad, onProgress, onError, showPlayButton = false, onPlayStateChange }, ref) => {
     const videoRef = useRef<Video>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,17 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       playAsync: async () => {
         console.log('▶️ playAsync called');
         try {
+          // Check if we're at the end before playing
+          const status = await videoRef.current?.getStatusAsync();
+          if (status?.isLoaded && status.durationMillis) {
+            const currentPos = status.positionMillis / 1000;
+            const duration = status.durationMillis / 1000;
+            // If at or near end, don't play (parent should handle reset)
+            if (currentPos >= duration - 0.1) {
+              console.log('Video at end, not playing');
+              return;
+            }
+          }
           await videoRef.current?.playAsync();
           setIsPlaying(true);
           setShowPlayOverlay(false);
@@ -183,11 +195,24 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
         // Update playing state
         if (status.isPlaying !== isPlaying) {
+          const wasPlaying = isPlaying;
           setIsPlaying(status.isPlaying);
+          onPlayStateChange?.(status.isPlaying);
           if (status.isPlaying) {
             setShowPlayOverlay(false);
           } else if (showPlayButton && !status.didJustFinish) {
             setShowPlayOverlay(true);
+          }
+        }
+        
+        // Check if we need to stop at segment end (for crop screen)
+        // This is handled by parent component, but we can also check here
+        if (status.isPlaying && status.durationMillis) {
+          const currentPos = status.positionMillis / 1000;
+          const duration = status.durationMillis / 1000;
+          // If very close to end, pause (parent will handle segment logic)
+          if (currentPos >= duration - 0.15) {
+            // Let parent handle this via onProgress callback
           }
         }
 
@@ -212,9 +237,27 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
     const handlePlayPress = async () => {
       if (videoRef.current) {
-        await videoRef.current.playAsync();
-        setIsPlaying(true);
-        setShowPlayOverlay(false);
+        try {
+          // Get current status to check position
+          const status = await videoRef.current.getStatusAsync();
+          if (status.isLoaded && status.durationMillis) {
+            const currentPos = status.positionMillis / 1000;
+            const duration = status.durationMillis / 1000;
+            // If we're at or near the end, don't play (let parent handle it)
+            // Otherwise just play
+            if (currentPos < duration - 0.1) {
+              await videoRef.current.playAsync();
+              setIsPlaying(true);
+              setShowPlayOverlay(false);
+            }
+          } else {
+            await videoRef.current.playAsync();
+            setIsPlaying(true);
+            setShowPlayOverlay(false);
+          }
+        } catch (error) {
+          console.error('Error in handlePlayPress:', error);
+        }
       }
     };
 

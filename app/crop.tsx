@@ -23,6 +23,7 @@ export default function CropScreen() {
   const [duration, setDuration] = useState(0);
   const [currentPosition, setCurrentPosition] = useState(0);
   const [startTime, setStartTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const maxStartTime = Math.max(0, duration - SEGMENT_DURATION);
   const endTime = Math.min(startTime + SEGMENT_DURATION, duration);
@@ -32,6 +33,29 @@ export default function CropScreen() {
       setStartTime(maxStartTime);
     }
   }, [duration, maxStartTime]);
+
+  // Backup check in useEffect (in case progress callback misses it)
+  useEffect(() => {
+    if (isPlaying && duration > 0 && endTime > 0) {
+      if (currentPosition >= endTime - 0.15) {
+        const pauseVideo = async () => {
+          if (videoRef.current && isPlaying) {
+            try {
+              await videoRef.current.pauseAsync();
+              setIsPlaying(false);
+              const finalPosition = Math.min(currentPosition, endTime);
+              await videoRef.current.setPositionAsync(finalPosition);
+              setCurrentPosition(finalPosition);
+            } catch (error) {
+              console.error('Error pausing video at segment end (useEffect):', error);
+              setIsPlaying(false);
+            }
+          }
+        };
+        pauseVideo();
+      }
+    }
+  }, [currentPosition, isPlaying, endTime, duration]);
 
   const handleLoad = (data: { duration: number }) => {
     if (data.duration > 0) {
@@ -44,7 +68,41 @@ export default function CropScreen() {
   };
 
   const handleProgress = (data: { position: number }) => {
-    setCurrentPosition(data.position);
+    const newPosition = data.position;
+    setCurrentPosition(newPosition);
+    
+    // Check if we've reached the end of segment while playing
+    // Do this directly in progress callback for more reliable stopping
+    if (isPlaying && duration > 0 && endTime > 0) {
+      if (newPosition >= endTime - 0.1) {
+        const pauseVideo = async () => {
+          if (videoRef.current) {
+            try {
+              await videoRef.current.pauseAsync();
+              setIsPlaying(false);
+              const finalPosition = Math.min(newPosition, endTime);
+              await videoRef.current.setPositionAsync(finalPosition);
+              setCurrentPosition(finalPosition);
+            } catch (error) {
+              console.error('Error pausing video at segment end:', error);
+              setIsPlaying(false);
+            }
+          }
+        };
+        pauseVideo();
+      }
+    }
+  };
+
+  const handlePlayStateChange = (playing: boolean) => {
+    setIsPlaying(playing);
+    // If video is starting to play and we're at the end of segment, reset to startTime
+    if (playing && Math.abs(currentPosition - endTime) < 0.1) {
+      if (videoRef.current) {
+        videoRef.current.setPositionAsync(startTime);
+        setCurrentPosition(startTime);
+      }
+    }
   };
 
   const handleSliderChange = async (value: number) => {
@@ -99,6 +157,7 @@ export default function CropScreen() {
           onProgress={handleProgress}
           onError={handleVideoError}
           showPlayButton={true}
+          onPlayStateChange={handlePlayStateChange}
         />
       </Animated.View>
 
@@ -113,6 +172,8 @@ export default function CropScreen() {
           startTime={startTime}
           segmentDuration={SEGMENT_DURATION}
           maxStartTime={maxStartTime}
+          currentPosition={currentPosition}
+          isPlaying={isPlaying}
           onValueChange={handleSliderChange}
         />
       </Animated.View>

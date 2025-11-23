@@ -8,6 +8,8 @@ interface VideoScrubberProps {
   startTime: number;
   segmentDuration: number;
   maxStartTime: number;
+  currentPosition?: number;
+  isPlaying?: boolean;
   onValueChange: (value: number) => void;
 }
 
@@ -16,11 +18,22 @@ export default function VideoScrubber({
   startTime,
   segmentDuration,
   maxStartTime,
+  currentPosition = 0,
+  isPlaying = false,
   onValueChange,
 }: VideoScrubberProps) {
   const segmentStartPercentage = duration > 0 ? (startTime / duration) * 100 : 0;
   const segmentWidthPercentage = duration > 0 ? (segmentDuration / duration) * 100 : 0;
   const endTime = Math.min(startTime + segmentDuration, duration);
+  
+  // Calculate current position indicator within segment
+  // Round to 0.1s for smoother updates
+  const roundedCurrentPosition = Math.round(currentPosition * 10) / 10;
+  const currentPositionInSegment = Math.max(startTime, Math.min(roundedCurrentPosition, endTime));
+  const currentPositionPercentage = duration > 0 ? (currentPositionInSegment / duration) * 100 : 0;
+  const positionInSegmentPercentage = currentPositionInSegment > startTime 
+    ? ((currentPositionInSegment - startTime) / segmentDuration) * 100 
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -42,7 +55,17 @@ export default function VideoScrubber({
                 styles.sliderTrackSelected,
                 { width: `${segmentWidthPercentage}%` },
               ]}
-            />
+            >
+              {/* Current position indicator when playing */}
+              {isPlaying && currentPositionInSegment >= startTime && currentPositionInSegment <= endTime && (
+                <View
+                  style={[
+                    styles.currentPositionIndicator,
+                    { left: `${positionInSegmentPercentage}%` },
+                  ]}
+                />
+              )}
+            </View>
             {(segmentStartPercentage + segmentWidthPercentage) < 100 && (
               <View
                 style={[
@@ -54,19 +77,26 @@ export default function VideoScrubber({
             )}
           </View>
         )}
-        <Slider
-          minimumValue={0}
-          maximumValue={duration}
-          value={startTime}
-          onValueChange={(value) => {
-            const clampedValue = Math.min(value, maxStartTime);
-            onValueChange(clampedValue);
-          }}
-          minimumTrackTintColor="transparent"
-          maximumTrackTintColor="transparent"
-          thumbTintColor="#3b82f6"
-          step={0.1}
-        />
+        <View style={[styles.sliderContainer, { opacity: 1 }]}>
+          <View style={{ opacity: 1 }}>
+            <Slider
+              minimumValue={0}
+              maximumValue={duration}
+              value={isPlaying ? currentPositionInSegment : startTime}
+              onValueChange={(value) => {
+                if (!isPlaying) {
+                  const clampedValue = Math.min(value, maxStartTime);
+                  onValueChange(clampedValue);
+                }
+              }}
+              minimumTrackTintColor="transparent"
+              maximumTrackTintColor="transparent"
+              thumbTintColor="#000000"
+              step={0.1}
+              disabled={isPlaying}
+            />
+          </View>
+        </View>
       </View>
       <View style={styles.sliderLabels}>
         <Text style={styles.sliderLabelText}>{formatTime(0)}</Text>
@@ -89,6 +119,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 40,
     justifyContent: 'center',
+  },
+  sliderContainer: {
+    opacity: 1, // Always keep slider fully opaque
   },
   sliderTrackBackground: {
     position: 'absolute',
@@ -143,5 +176,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#2563eb',
+  },
+  currentPositionIndicator: {
+    position: 'absolute',
+    top: -4,
+    width: 4,
+    height: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });
