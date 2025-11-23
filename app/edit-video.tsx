@@ -60,9 +60,10 @@ export default function EditVideoScreen() {
           onPress: () => router.back(),
         },
       ]);
-    } catch (error: any) {
-      console.error('❌ Error updating video:', error);
-      Alert.alert('Error', error?.message || 'Failed to update video. Please try again.');
+    } catch (error: unknown) {
+      logger.error('Error updating video:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update video. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsSaving(false);
     }

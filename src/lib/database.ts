@@ -1,4 +1,6 @@
 import * as SQLite from 'expo-sqlite';
+import { DATABASE_NAME } from '../constants/videoConstants';
+import { logger } from '../utils/logger';
 
 export type VideoItem = {
   id: string;
@@ -17,7 +19,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   }
 
   try {
-    db = await SQLite.openDatabaseAsync('video-diary.db');
+    db = await SQLite.openDatabaseAsync(DATABASE_NAME);
     
     // Create videos table if it doesn't exist
     await db.execAsync(`
@@ -36,18 +38,19 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync(`
         ALTER TABLE videos ADD COLUMN thumbnailUri TEXT;
       `);
-      console.log('✅ Added thumbnailUri column to videos table');
-    } catch (error: any) {
+      logger.log('Added thumbnailUri column to videos table');
+    } catch (error: unknown) {
       // Column might already exist, ignore error
-      if (!error.message?.includes('duplicate column name')) {
-        console.log('⚠️ Migration note:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('duplicate column name')) {
+        logger.log('Migration note:', errorMessage);
       }
     }
 
-    console.log('✅ Database initialized successfully');
+    logger.log('Database initialized successfully');
     return db;
   } catch (error) {
-    console.error('❌ Error initializing database:', error);
+    logger.error('Error initializing database:', error);
     throw error;
   }
 }
@@ -60,7 +63,7 @@ export async function getAllVideos(): Promise<VideoItem[]> {
     );
     return result;
   } catch (error) {
-    console.error('❌ Error fetching videos:', error);
+    logger.error('Error fetching videos:', error);
     return [];
   }
 }
@@ -72,9 +75,9 @@ export async function addVideo(video: VideoItem): Promise<void> {
       'INSERT INTO videos (id, name, description, uri, thumbnailUri, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
       [video.id, video.name, video.description || null, video.uri, video.thumbnailUri || null, video.createdAt]
     );
-    console.log('✅ Video added to database:', video.id);
+    logger.log('Video added to database:', video.id);
   } catch (error) {
-    console.error('❌ Error adding video:', error);
+    logger.error('Error adding video:', error);
     throw error;
   }
 }
@@ -83,9 +86,9 @@ export async function removeVideo(id: string): Promise<void> {
   const database = await initDatabase();
   try {
     await database.runAsync('DELETE FROM videos WHERE id = ?', [id]);
-    console.log('✅ Video removed from database:', id);
+    logger.log('Video removed from database:', id);
   } catch (error) {
-    console.error('❌ Error removing video:', error);
+    logger.error('Error removing video:', error);
     throw error;
   }
 }
@@ -99,7 +102,7 @@ export async function getVideoById(id: string): Promise<VideoItem | null> {
     );
     return result || null;
   } catch (error) {
-    console.error('❌ Error fetching video:', error);
+    logger.error('Error fetching video:', error);
     return null;
   }
 }
@@ -108,7 +111,7 @@ export async function updateVideo(id: string, updates: { name?: string; descript
   const database = await initDatabase();
   try {
     const updatesList: string[] = [];
-    const values: any[] = [];
+    const values: (string | null)[] = [];
 
     if (updates.name !== undefined) {
       updatesList.push('name = ?');
@@ -121,7 +124,7 @@ export async function updateVideo(id: string, updates: { name?: string; descript
     }
 
     if (updatesList.length === 0) {
-      console.warn('⚠️ No updates provided');
+      logger.warn('No updates provided');
       return;
     }
 
@@ -129,9 +132,9 @@ export async function updateVideo(id: string, updates: { name?: string; descript
     const query = `UPDATE videos SET ${updatesList.join(', ')} WHERE id = ?`;
     
     await database.runAsync(query, values);
-    console.log('✅ Video updated in database:', id);
+    logger.log('Video updated in database:', id);
   } catch (error) {
-    console.error('❌ Error updating video:', error);
+    logger.error('Error updating video:', error);
     throw error;
   }
 }

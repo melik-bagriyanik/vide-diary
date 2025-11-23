@@ -2,6 +2,8 @@ import { useState } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTrimVideo } from './useTrimVideo';
 import { generateThumbnail, ensureTrimmedVideosDirectory } from '../utils/videoUtils';
+import { TRIMMED_VIDEOS_DIR } from '../constants/videoConstants';
+import { logger } from '../utils/logger';
 
 interface VideoProcessingResult {
   finalUri: string;
@@ -35,8 +37,8 @@ export function useVideoProcessing() {
       let finalUri = trimmedUri;
 
       // Check if already in correct location
-      const trimmedDir = `${FileSystem.documentDirectory}trimmed_videos/`;
-      const isAlreadyInCorrectLocation = trimmedUri.includes('trimmed_videos/');
+      const trimmedDir = `${FileSystem.documentDirectory}${TRIMMED_VIDEOS_DIR}`;
+      const isAlreadyInCorrectLocation = trimmedUri.includes(TRIMMED_VIDEOS_DIR);
 
       if (!isAlreadyInCorrectLocation) {
         // Ensure directory exists
@@ -58,7 +60,7 @@ export function useVideoProcessing() {
             finalUri = permanentUri.replace(/^file:\/\/file:\/\//, 'file://');
           }
         } catch (copyError) {
-          console.error('❌ Error copying trimmed video:', copyError);
+          logger.error('Error copying trimmed video:', copyError);
           // Use trimmed URI as fallback
         }
       } else {
@@ -69,7 +71,7 @@ export function useVideoProcessing() {
             throw new Error('Trimmed video file not found');
           }
         } catch (verifyError) {
-          console.error('❌ Error verifying trimmed video:', verifyError);
+          logger.error('Error verifying trimmed video:', verifyError);
         }
       }
 

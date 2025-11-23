@@ -1,24 +1,25 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  ScrollView,
-  Alert,
-  StyleSheet,
-} from 'react-native';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import AnimatedButton from '../src/components/AnimatedButton';
 import Header from '../src/components/Header';
 import MetadataForm from '../src/components/metadata/MetadataForm';
 import SegmentInfo from '../src/components/metadata/SegmentInfo';
 import { useVideoProcessing } from '../src/hooks/useVideoProcessing';
 import { metadataSchema, type MetadataFormData } from '../src/schemas/metadataSchema';
-import AnimatedButton from '../src/components/AnimatedButton';
+import { useVideoStore } from '../src/store/useVideoStore';
+import { logger } from '../src/utils/logger';
 
 export default function MetadataScreen() {
   const params = useLocalSearchParams();
@@ -65,10 +66,10 @@ export default function MetadataScreen() {
 
       await addVideo(videoData);
       router.replace('/');
-    } catch (error: any) {
-      console.error('❌ Error saving video:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving video:', error);
       
-      const errorMessage = error?.message || 'Error saving video. Please try again.';
+      const errorMessage = error instanceof Error ? error.message : 'Error saving video. Please try again.';
       const isDevelopmentBuildError =
         errorMessage.includes('development build') ||
         errorMessage.includes('native module') ||

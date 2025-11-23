@@ -5,12 +5,13 @@ import { useEffect } from 'react';
 import { LogBox } from 'react-native';
 import { initDatabase } from '../src/lib/database';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { logger } from '../src/utils/logger';
 
 export default function Layout() {
   useEffect(() => {
     // Initialize database on app startup
     initDatabase().catch((error) => {
-      console.error('❌ Failed to initialize database on app startup:', error);
+      logger.error('Failed to initialize database on app startup:', error);
     });
 
     // Suppress expo-trim-video native module errors in Expo Go
@@ -23,7 +24,7 @@ export default function Layout() {
     
     // Also ignore errors in console
     const originalError = console.error;
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       const message = args[0]?.toString() || '';
       if (
         (message.includes('Cannot find native module') &&

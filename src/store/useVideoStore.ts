@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getAllVideos, addVideo as addVideoToDB, removeVideo as removeVideoFromDB, updateVideo as updateVideoInDB, type VideoItem } from '../lib/database';
+import { logger } from '../utils/logger';
 
 type State = {
   videos: VideoItem[];
@@ -21,9 +22,9 @@ export const useVideoStore = create<State>((set, get) => ({
     try {
       const videos = await getAllVideos();
       set({ videos, isLoading: false, isHydrated: true });
-      console.log('✅ Videos loaded from database:', videos.length);
+      logger.log('Videos loaded from database:', videos.length);
     } catch (error) {
-      console.error('❌ Error loading videos:', error);
+      logger.error('Error loading videos:', error);
       set({ isLoading: false, isHydrated: true });
     }
   },
@@ -34,9 +35,9 @@ export const useVideoStore = create<State>((set, get) => ({
       // Reload videos from database to ensure consistency
       const videos = await getAllVideos();
       set({ videos });
-      console.log('✅ Video added and store updated');
+      logger.log('Video added and store updated');
     } catch (error) {
-      console.error('❌ Error adding video:', error);
+      logger.error('Error adding video:', error);
       throw error;
     }
   },
@@ -48,9 +49,9 @@ export const useVideoStore = create<State>((set, get) => ({
       set((state) => ({
         videos: state.videos.filter((x) => x.id !== id),
       }));
-      console.log('✅ Video removed and store updated');
+      logger.log('Video removed and store updated');
     } catch (error) {
-      console.error('❌ Error removing video:', error);
+      logger.error('Error removing video:', error);
       throw error;
     }
   },
@@ -61,9 +62,9 @@ export const useVideoStore = create<State>((set, get) => ({
       // Reload videos from database to ensure consistency
       const videos = await getAllVideos();
       set({ videos });
-      console.log('✅ Video updated and store refreshed');
+      logger.log('Video updated and store refreshed');
     } catch (error) {
-      console.error('❌ Error updating video:', error);
+      logger.error('Error updating video:', error);
       throw error;
     }
   },

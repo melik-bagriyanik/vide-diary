@@ -7,13 +7,15 @@ import Animated, {
   withTiming,
   FadeIn,
   FadeInDown,
+  BaseAnimationBuilder,
 } from 'react-native-reanimated';
+import { ANIMATION_DURATION } from '../constants/videoConstants';
 
 interface AnimatedButtonProps extends TouchableOpacityProps {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'small' | 'medium' | 'large';
-  entering?: any;
+  entering?: BaseAnimationBuilder | typeof BaseAnimationBuilder;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -22,7 +24,7 @@ export default function AnimatedButton({
   children,
   variant = 'primary',
   size = 'medium',
-  entering = FadeInDown.duration(300),
+  entering = FadeInDown.duration(ANIMATION_DURATION.NORMAL),
   style,
   disabled,
   ...props

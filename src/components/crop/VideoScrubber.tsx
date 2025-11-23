@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { formatTime } from '../../utils/dateUtils';
+import { POSITION_ROUNDING_PRECISION } from '../../constants/videoConstants';
 
 interface VideoScrubberProps {
   duration: number;
@@ -27,8 +28,8 @@ export default function VideoScrubber({
   const endTime = Math.min(startTime + segmentDuration, duration);
   
   // Calculate current position indicator within segment
-  // Round to 0.1s for smoother updates
-  const roundedCurrentPosition = Math.round(currentPosition * 10) / 10;
+  // Round for smoother updates
+  const roundedCurrentPosition = Math.round(currentPosition / POSITION_ROUNDING_PRECISION) * POSITION_ROUNDING_PRECISION;
   const currentPositionInSegment = Math.max(startTime, Math.min(roundedCurrentPosition, endTime));
   const currentPositionPercentage = duration > 0 ? (currentPositionInSegment / duration) * 100 : 0;
   const positionInSegmentPercentage = currentPositionInSegment > startTime 

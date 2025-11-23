@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { trimVideo } from 'expo-trim-video';
+import { logger } from '../utils/logger';
 
 type TrimParams = {
   uri: string;
@@ -47,18 +48,19 @@ export function useTrimVideo() {
           };
         }
         
-        console.log('✅ Video trimmed successfully:', trimmedUri);
+        logger.log('Video trimmed successfully:', trimmedUri);
         return {
           uri: trimmedUri,
           success: true,
         };
-      } catch (trimError: any) {
-        console.error('❌ Video trimming failed:', trimError);
+      } catch (trimError: unknown) {
+        logger.error('Video trimming failed:', trimError);
         
         // Handle specific error codes from expo-trim-video
         // Error codes: INVALID_ARGUMENTS, INVALID_START, INVALID_END, INVALID_RANGE,
         //              INVALID_URI, FILE_NOT_FOUND, TRIM_ERROR
-        const errorMessage = trimError?.message || String(trimError) || 'Video trimming failed';
+        const errorMessage = 
+          (trimError instanceof Error ? trimError.message : String(trimError)) || 'Video trimming failed';
         
         // Map error codes to user-friendly messages
         let userFriendlyError = errorMessage;

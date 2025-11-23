@@ -15,6 +15,8 @@ import {
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import AnimatedButton from '../src/components/AnimatedButton';
 import Header from '../src/components/Header';
+import { logger } from '../src/utils/logger';
+import { VIDEO_MAX_DURATION } from '../src/constants/videoConstants';
 
 const TEST_VIDEO_URL = 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
 
@@ -48,7 +50,7 @@ export default function SelectVideoScreen() {
         mediaTypes: ['videos'],
         allowsEditing: false,
         quality: 1,
-        videoMaxDuration: 300, // 5 minutes max
+        videoMaxDuration: VIDEO_MAX_DURATION,
       });
 
       if (result.canceled) {
@@ -69,11 +71,12 @@ export default function SelectVideoScreen() {
 
       setIsLoading(false);
       setLoadingType(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsLoading(false);
       setLoadingType(null);
-      console.error('Error picking video from photos:', error);
-      Alert.alert('Error', error?.message || 'Failed to select video from photos.');
+      logger.error('Error picking video from photos:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to select video from photos.';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -105,11 +108,12 @@ export default function SelectVideoScreen() {
 
       setIsLoading(false);
       setLoadingType(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsLoading(false);
       setLoadingType(null);
-      console.error('Error picking video from files:', error);
-      Alert.alert('Error', error?.message || 'Failed to select video from files.');
+      logger.error('Error picking video from files:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to select video from files.';
+      Alert.alert('Error', errorMessage);
     }
   };
 

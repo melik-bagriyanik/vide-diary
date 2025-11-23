@@ -48,7 +48,7 @@ export default function VideoListScreen() {
             transition={200}
             placeholderContentFit="cover"
             onError={(error) => {
-              console.warn('⚠️ Thumbnail load error for video:', item.id, error);
+              logger.warn('Thumbnail load error for video:', item.id, error);
             }}
           />
         ) : (

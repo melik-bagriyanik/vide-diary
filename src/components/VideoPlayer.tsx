@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MANUAL_STATUS_CHECK_DELAY, SEGMENT_END_THRESHOLD, SEGMENT_END_THRESHOLD_BACKUP, VIDEO_ASPECT_RATIO } from '../constants/videoConstants';
+import { logger } from '../utils/logger';
 
 interface VideoPlayerProps {
   uri: string;
@@ -36,18 +38,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     }, [showPlayButton, isPlaying]);
 
-    console.log('🎬🎬🎬 VideoPlayer component RENDERED, URI:', uri);
-    console.log('🎬 URI Format Check =>', {
-      isFile: uri?.startsWith('file://'),
-      isContent: uri?.startsWith('content://'),
-      isHttp: uri?.startsWith('http'),
-      isPh: uri?.startsWith('ph://'),
-      length: uri?.length,
-    });
-
     useImperativeHandle(ref, () => ({
       playAsync: async () => {
-        console.log('▶️ playAsync called');
         try {
           // Check if we're at the end before playing
           const status = await videoRef.current?.getStatusAsync();
@@ -55,8 +47,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             const currentPos = status.positionMillis / 1000;
             const duration = status.durationMillis / 1000;
             // If at or near end, don't play (parent should handle reset)
-            if (currentPos >= duration - 0.1) {
-              console.log('Video at end, not playing');
+            if (currentPos >= duration - SEGMENT_END_THRESHOLD) {
               return;
             }
           }
@@ -64,11 +55,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           setIsPlaying(true);
           setShowPlayOverlay(false);
         } catch (e) {
-          console.error('❌ Error in playAsync:', e);
+          logger.error('Error in playAsync:', e);
         }
       },
       pauseAsync: async () => {
-        console.log('⏸️ pauseAsync called');
         try {
           await videoRef.current?.pauseAsync();
           setIsPlaying(false);
@@ -76,24 +66,23 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             setShowPlayOverlay(true);
           }
         } catch (e) {
-          console.error('❌ Error in pauseAsync:', e);
+          logger.error('Error in pauseAsync:', e);
         }
       },
-            setPositionAsync: async (position: number) => {
-              console.log('⏩ setPositionAsync called with:', position, 'seconds');
-              try {
-                // expo-av uses milliseconds
-                await videoRef.current?.setPositionAsync(position * 1000);
-              } catch (e: any) {
-                // "Seeking interrupted" is a common non-critical error when seeking rapidly
-                const errorMsg = e?.message || String(e) || '';
-                if (errorMsg.includes('Seeking interrupted') || errorMsg.includes('interrupted')) {
-                  // Silent fail - this is expected when seeking rapidly
-                  return;
-                }
-                console.warn('⚠️ Error in setPositionAsync:', errorMsg);
-              }
-            },
+      setPositionAsync: async (position: number) => {
+        try {
+          // expo-av uses milliseconds
+          await videoRef.current?.setPositionAsync(position * 1000);
+        } catch (e: unknown) {
+          // "Seeking interrupted" is a common non-critical error when seeking rapidly
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          if (errorMsg.includes('Seeking interrupted') || errorMsg.includes('interrupted')) {
+            // Silent fail - this is expected when seeking rapidly
+            return;
+          }
+          logger.warn('Error in setPositionAsync:', errorMsg);
+        }
+      },
     }));
 
     // Manual status check after 1.5 seconds (fallback if onLoad doesn't fire)
@@ -112,74 +101,57 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             
             if (durationMillis && durationMillis > 0 && durationMillis !== Infinity && !isNaN(durationMillis)) {
               const durationSeconds = durationMillis / 1000;
-              console.log('✅✅✅ Video loaded via manual status check, duration:', durationSeconds, 'seconds');
               setIsLoading(false);
               setError(null);
               setHasLoadedDuration(true);
               onLoad?.({ duration: durationSeconds });
-            } else {
-              // Duration not available but video is loaded - might still be loading metadata
-              console.log('📌 Manual status check: video is loaded but duration not available yet');
             }
-          } else {
-            // Video not loaded yet - only warn if there's an actual error
-            if (status?.error) {
-              console.warn('⚠️ Manual status check: video loading error:', status.error);
-            } else {
-              // No error, just not loaded yet - this is normal, don't warn
-              console.log('📌 Manual status check: video still loading...');
-            }
+          } else if (status?.error) {
+            logger.warn('Video loading error:', status.error);
           }
         } catch (e) {
-          console.error('⛔ Status Error:', e);
+          logger.error('Status check error:', e);
         }
-      }, 1500);
+      }, MANUAL_STATUS_CHECK_DELAY);
 
       return () => clearTimeout(timeout);
     }, [uri, onLoad, hasLoadedDuration]);
 
     // Handle onLoad - this is called when video metadata is loaded
     const handleLoad = (status: AVPlaybackStatus) => {
-      console.log('📌📌📌 onLoad fired with status:', JSON.stringify(status, null, 2));
       if (status.isLoaded) {
         const durationMillis = status.durationMillis;
-        console.log('✅ onLoad - durationMillis:', durationMillis);
         if (durationMillis && durationMillis > 0 && durationMillis !== Infinity && !isNaN(durationMillis)) {
           const durationSeconds = durationMillis / 1000;
-          console.log('✅✅✅ Video loaded via onLoad, duration:', durationSeconds, 'seconds');
           setIsLoading(false);
           setError(null);
           setHasLoadedDuration(true);
           onLoad?.({ duration: durationSeconds });
-        } else {
-          console.warn('⚠️ onLoad fired but durationMillis is invalid:', durationMillis);
         }
-      } else {
-        console.warn('⚠️ onLoad fired but status is not loaded, error:', status.error);
+      } else if (status.error) {
+        logger.warn('Video load error:', status.error);
       }
     };
 
     // Handle onReadyForDisplay - this fires even if duration is not available
     const handleReadyForDisplay = () => {
-      console.log('📌📌📌 onReadyForDisplay fired!');
       setIsReadyForDisplay(true);
       
       // If duration hasn't loaded yet, try to get it manually
       if (!hasLoadedDuration && videoRef.current) {
         videoRef.current.getStatusAsync().then((status) => {
-          console.log('📌 onReadyForDisplay - checking status:', JSON.stringify(status, null, 2));
           if (status.isLoaded && status.durationMillis && status.durationMillis > 0) {
             const durationSeconds = status.durationMillis / 1000;
-            console.log('✅ Video loaded via onReadyForDisplay status check, duration:', durationSeconds, 'seconds');
             setIsLoading(false);
             setError(null);
             setHasLoadedDuration(true);
             onLoad?.({ duration: durationSeconds });
           } else {
             // Even if duration is not available, hide loading (video is ready to display)
-            console.log('⚠️ onReadyForDisplay: duration not available, but video is ready');
             setIsLoading(false);
           }
+        }).catch(() => {
+          setIsLoading(false);
         });
       } else {
         setIsLoading(false);
@@ -211,7 +183,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           const currentPos = status.positionMillis / 1000;
           const duration = status.durationMillis / 1000;
           // If very close to end, pause (parent will handle segment logic)
-          if (currentPos >= duration - 0.15) {
+          if (currentPos >= duration - SEGMENT_END_THRESHOLD_BACKUP) {
             // Let parent handle this via onProgress callback
           }
         }
@@ -220,14 +192,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         const durationMillis = status.durationMillis;
         if (!hasLoadedDuration && durationMillis && durationMillis > 0 && durationMillis !== Infinity && !isNaN(durationMillis)) {
           const durationSeconds = durationMillis / 1000;
-          console.log('✅✅✅ Video loaded via onPlaybackStatusUpdate, duration:', durationSeconds, 'seconds');
           setIsLoading(false);
           setError(null);
           setHasLoadedDuration(true);
           onLoad?.({ duration: durationSeconds });
         }
       } else if (status.error) {
-        console.error('❌ Playback error:', status.error);
         const errorMsg = status.error || 'Playback error';
         setError(errorMsg);
         setIsLoading(false);
@@ -245,7 +215,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             const duration = status.durationMillis / 1000;
             // If we're at or near the end, don't play (let parent handle it)
             // Otherwise just play
-            if (currentPos < duration - 0.1) {
+            if (currentPos < duration - SEGMENT_END_THRESHOLD) {
               await videoRef.current.playAsync();
               setIsPlaying(true);
               setShowPlayOverlay(false);
@@ -256,7 +226,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             setShowPlayOverlay(false);
           }
         } catch (error) {
-          console.error('Error in handlePlayPress:', error);
+          logger.error('Error in handlePlayPress:', error);
         }
       }
     };
@@ -283,8 +253,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       );
     }
 
-    console.log('🎬 Rendering Video component with URI:', uri);
-
     return (
       <View style={styles.container}>
         {isLoading && (
@@ -302,7 +270,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           onLoad={handleLoad}
           onReadyForDisplay={handleReadyForDisplay}
           onError={(errorMsg: string) => {
-            console.error('🔥🔥🔥 VIDEO ERROR:', errorMsg);
             setError(errorMsg);
             setIsLoading(false);
             onError?.(errorMsg);
@@ -330,7 +297,7 @@ VideoPlayer.displayName = 'VideoPlayer';
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: VIDEO_ASPECT_RATIO,
     backgroundColor: '#000000',
     borderRadius: 12,
     overflow: 'hidden',
@@ -353,7 +320,7 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: VIDEO_ASPECT_RATIO,
     backgroundColor: '#fee2e2',
     borderRadius: 12,
     justifyContent: 'center',

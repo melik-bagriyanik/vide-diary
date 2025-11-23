@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
+import { logger } from '../utils/logger';
 
 export function useVideoPersistence(originalUri: string | undefined) {
   const [finalUri, setFinalUri] = useState<string | null>(null);
@@ -36,8 +37,8 @@ export function useVideoPersistence(originalUri: string | undefined) {
         setFinalUri(cacheUri);
         setIsCopying(false);
         setIsLoading(false);
-      } catch (copyError: any) {
-        console.error('❌ Error copying video to cache:', copyError);
+      } catch (copyError: unknown) {
+        logger.error('Error copying video to cache:', copyError);
         setFinalUri(originalUri);
         setIsCopying(false);
         setIsLoading(false);

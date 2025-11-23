@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import VideoPlayer, { VideoPlayerRef } from '../src/components/VideoPlayer';
@@ -10,8 +10,14 @@ import LoadingScreen from '../src/components/crop/LoadingScreen';
 import ErrorScreen from '../src/components/crop/ErrorScreen';
 import { useVideoPersistence } from '../src/hooks/useVideoPersistence';
 import AnimatedButton from '../src/components/AnimatedButton';
-
-const SEGMENT_DURATION = 5; // 5 seconds fixed
+import { 
+  SEGMENT_DURATION, 
+  SEGMENT_END_THRESHOLD, 
+  SEGMENT_END_THRESHOLD_BACKUP,
+  ANIMATION_DURATION,
+  ANIMATION_DELAY 
+} from '../src/constants/videoConstants';
+import { logger } from '../src/utils/logger';
 
 export default function CropScreen() {
   const params = useLocalSearchParams();
@@ -37,7 +43,7 @@ export default function CropScreen() {
   // Backup check in useEffect (in case progress callback misses it)
   useEffect(() => {
     if (isPlaying && duration > 0 && endTime > 0) {
-      if (currentPosition >= endTime - 0.15) {
+      if (currentPosition >= endTime - SEGMENT_END_THRESHOLD_BACKUP) {
         const pauseVideo = async () => {
           if (videoRef.current && isPlaying) {
             try {
@@ -47,7 +53,7 @@ export default function CropScreen() {
               await videoRef.current.setPositionAsync(finalPosition);
               setCurrentPosition(finalPosition);
             } catch (error) {
-              console.error('Error pausing video at segment end (useEffect):', error);
+              logger.error('Error pausing video at segment end (useEffect):', error);
               setIsPlaying(false);
             }
           }
@@ -64,7 +70,7 @@ export default function CropScreen() {
   };
 
   const handleVideoError = (errorMsg: string) => {
-    console.error('❌ Video error in crop screen:', errorMsg);
+    logger.error('Video error in crop screen:', errorMsg);
   };
 
   const handleProgress = (data: { position: number }) => {
@@ -74,7 +80,7 @@ export default function CropScreen() {
     // Check if we've reached the end of segment while playing
     // Do this directly in progress callback for more reliable stopping
     if (isPlaying && duration > 0 && endTime > 0) {
-      if (newPosition >= endTime - 0.1) {
+      if (newPosition >= endTime - SEGMENT_END_THRESHOLD) {
         const pauseVideo = async () => {
           if (videoRef.current) {
             try {
@@ -84,7 +90,7 @@ export default function CropScreen() {
               await videoRef.current.setPositionAsync(finalPosition);
               setCurrentPosition(finalPosition);
             } catch (error) {
-              console.error('Error pausing video at segment end:', error);
+              logger.error('Error pausing video at segment end:', error);
               setIsPlaying(false);
             }
           }
@@ -147,7 +153,7 @@ export default function CropScreen() {
       <Header title="Select Segment" />
 
       <Animated.View 
-        entering={FadeIn.duration(400)} 
+        entering={FadeIn.duration(ANIMATION_DURATION.SLOW)} 
         style={styles.videoContainer}
       >
         <VideoPlayer
@@ -162,7 +168,7 @@ export default function CropScreen() {
       </Animated.View>
 
       <Animated.View 
-        entering={FadeInDown.delay(200).duration(400)} 
+        entering={FadeInDown.delay(ANIMATION_DELAY.MEDIUM).duration(ANIMATION_DURATION.SLOW)} 
         style={styles.timeContainer}
       >
         <TimeDisplay startTime={startTime} endTime={endTime} segmentDuration={SEGMENT_DURATION} />

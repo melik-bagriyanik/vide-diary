@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const renderVideoItem = ({ item, index }: { item: typeof videos[0]; index: number }) => {
     // Debug: Log thumbnail info
     if (!item.thumbnailUri) {
-      console.log('⚠️ Video has no thumbnail:', item.id, item.name);
+      logger.log('Video has no thumbnail:', item.id, item.name);
     }
     
     return (
@@ -77,7 +77,7 @@ export default function HomeScreen() {
             transition={200}
             placeholderContentFit="cover"
             onError={(error) => {
-              console.warn('⚠️ Thumbnail load error for video:', item.id, error);
+              logger.warn('Thumbnail load error for video:', item.id, error);
             }}
           />
         ) : (

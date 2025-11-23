@@ -38,7 +38,7 @@ export default function VideoDetailsScreen() {
             try {
               await removeVideo(video.id);
             } catch (error) {
-              console.error('Error deleting video:', error);
+              logger.error('Error deleting video:', error);
             }
           },
         },
