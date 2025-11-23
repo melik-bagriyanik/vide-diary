@@ -64,13 +64,23 @@ export default function VideoListScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.thumbnailContainer}>
-        <Image
-          source={{ uri: item.uri }}
-          style={styles.thumbnail}
-          contentFit="cover"
-          transition={200}
-          placeholderContentFit="cover"
-        />
+        {item.thumbnailUri ? (
+          <Image
+            source={{ uri: item.thumbnailUri }}
+            style={styles.thumbnail}
+            contentFit="cover"
+            transition={200}
+            placeholderContentFit="cover"
+            onError={(error) => {
+              console.warn('⚠️ Thumbnail load error for video:', item.id, error);
+            }}
+          />
+        ) : (
+          <View style={styles.thumbnailPlaceholder}>
+            <Ionicons name="videocam-outline" size={24} color="#9ca3af" />
+            <Text style={styles.thumbnailPlaceholderText}>No thumbnail</Text>
+          </View>
+        )}
         <View style={styles.playButtonOverlay}>
           <Ionicons name="play-circle" size={32} color="rgba(255, 255, 255, 0.9)" />
         </View>
@@ -246,6 +256,19 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  thumbnailPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e5e7eb',
+  },
+  thumbnailPlaceholderText: {
+    marginTop: 4,
+    fontSize: 9,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   playButtonOverlay: {
     ...StyleSheet.absoluteFillObject,

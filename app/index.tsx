@@ -80,7 +80,13 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadVideos]);
 
-  const renderVideoItem = ({ item, index }: { item: typeof videos[0]; index: number }) => (
+  const renderVideoItem = ({ item, index }: { item: typeof videos[0]; index: number }) => {
+    // Debug: Log thumbnail info
+    if (!item.thumbnailUri) {
+      console.log('⚠️ Video has no thumbnail:', item.id, item.name);
+    }
+    
+    return (
     <Animated.View entering={FadeInDown.delay(index * 50).duration(300)}>
       <TouchableOpacity
         style={styles.videoItem}
@@ -88,13 +94,23 @@ export default function HomeScreen() {
         activeOpacity={0.7}
       >
       <View style={styles.thumbnailContainer}>
-        <Image
-          source={{ uri: item.uri }}
-          style={styles.thumbnail}
-          contentFit="cover"
-          transition={200}
-          placeholderContentFit="cover"
-        />
+        {item.thumbnailUri ? (
+          <Image
+            source={{ uri: item.thumbnailUri }}
+            style={styles.thumbnail}
+            contentFit="cover"
+            transition={200}
+            placeholderContentFit="cover"
+            onError={(error) => {
+              console.warn('⚠️ Thumbnail load error for video:', item.id, error);
+            }}
+          />
+        ) : (
+          <View style={styles.thumbnailPlaceholder}>
+            <Ionicons name="videocam-outline" size={32} color="#9ca3af" />
+            <Text style={styles.thumbnailPlaceholderText}>No thumbnail</Text>
+          </View>
+        )}
         <View style={styles.playButtonOverlay}>
           <Ionicons name="play-circle" size={40} color="rgba(255, 255, 255, 0.95)" />
         </View>
@@ -126,7 +142,8 @@ export default function HomeScreen() {
       </View>
     </TouchableOpacity>
     </Animated.View>
-  );
+    );
+  };
 
   const renderEmptyState = () => (
     <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
@@ -289,6 +306,19 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  thumbnailPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e5e7eb',
+  },
+  thumbnailPlaceholderText: {
+    marginTop: 4,
+    fontSize: 10,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   playButtonOverlay: {
     ...StyleSheet.absoluteFillObject,

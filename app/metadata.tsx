@@ -34,6 +34,55 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+async function generateThumbnail(videoUri: string, fallbackUri?: string): Promise<string | null> {
+  try {
+    // Dynamic import for video thumbnails (requires development build)
+    const VideoThumbnails = await import('expo-video-thumbnails');
+    
+    // Try from main video URI first (trimmed video)
+    try {
+      console.log('🖼️ Attempting to generate thumbnail from video URI:', videoUri);
+      const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
+        time: 0, // Video'nun ilk frame'ini al (0. saniye)
+        quality: 0.8,
+      });
+      console.log('✅ Thumbnail generated successfully:', thumbnailUri);
+      return thumbnailUri;
+    } catch (firstError: any) {
+      console.warn('⚠️ Failed to generate thumbnail from main URI, trying fallback...', firstError?.message);
+      
+      // If fallback URI provided, try that
+      if (fallbackUri && fallbackUri !== videoUri) {
+        try {
+          console.log('🖼️ Attempting to generate thumbnail from fallback URI:', fallbackUri);
+          const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(fallbackUri, {
+            time: 0, // Video'nun ilk frame'ini al
+            quality: 0.8,
+          });
+          console.log('✅ Thumbnail generated from fallback URI:', thumbnailUri);
+          return thumbnailUri;
+        } catch (fallbackError: any) {
+          console.warn('⚠️ Failed to generate thumbnail from fallback URI:', fallbackError?.message);
+        }
+      }
+      throw firstError; // Re-throw original error
+    }
+  } catch (e: any) {
+    // Check if it's a module not found error (development build required)
+    const errorMessage = e?.message || String(e);
+    if (errorMessage.includes('Cannot find native module') || 
+        errorMessage.includes('expo-video-thumbnails') ||
+        errorMessage.includes('native module')) {
+      console.error('❌ Video thumbnails requires development build. Run: npx expo run:ios or npx expo run:android');
+      console.error('❌ Error details:', errorMessage);
+    } else {
+      console.error('❌ Thumbnail generation error:', errorMessage);
+      console.error('❌ Full error:', e);
+    }
+    return null;
+  }
+}
+
 export default function MetadataScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -210,6 +259,18 @@ export default function MetadataScreen() {
         return;
       }
 
+      // Generate thumbnail from video (try trimmed video first, fallback to original)
+      console.log('🖼️ Generating thumbnail from video...');
+      console.log('🖼️ Final URI (trimmed):', finalUri);
+      console.log('🖼️ Original URI:', uri);
+      const thumbnailUri = await generateThumbnail(finalUri, uri);
+      
+      if (!thumbnailUri) {
+        console.warn('⚠️ Thumbnail generation failed - video will be saved without thumbnail');
+      } else {
+        console.log('✅ Thumbnail URI generated:', thumbnailUri);
+      }
+
       // Save to store (only trimmed 5-second video)
       const videoId = String(Date.now());
       const videoData = {
@@ -217,6 +278,7 @@ export default function MetadataScreen() {
         name: formData.name,
         description: formData.description,
         uri: finalUri,
+        thumbnailUri: thumbnailUri || undefined,
         createdAt: Date.now(),
       };
 

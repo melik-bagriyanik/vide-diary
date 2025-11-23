@@ -5,6 +5,7 @@ export type VideoItem = {
   name: string;
   description?: string;
   uri: string;
+  thumbnailUri?: string;
   createdAt: number;
 };
 
@@ -25,9 +26,23 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
         name TEXT NOT NULL,
         description TEXT,
         uri TEXT NOT NULL,
+        thumbnailUri TEXT,
         createdAt INTEGER NOT NULL
       );
     `);
+
+    // Add thumbnailUri column if it doesn't exist (migration for existing databases)
+    try {
+      await db.execAsync(`
+        ALTER TABLE videos ADD COLUMN thumbnailUri TEXT;
+      `);
+      console.log('✅ Added thumbnailUri column to videos table');
+    } catch (error: any) {
+      // Column might already exist, ignore error
+      if (!error.message?.includes('duplicate column name')) {
+        console.log('⚠️ Migration note:', error.message);
+      }
+    }
 
     console.log('✅ Database initialized successfully');
     return db;
@@ -54,8 +69,8 @@ export async function addVideo(video: VideoItem): Promise<void> {
   const database = await initDatabase();
   try {
     await database.runAsync(
-      'INSERT INTO videos (id, name, description, uri, createdAt) VALUES (?, ?, ?, ?, ?)',
-      [video.id, video.name, video.description || null, video.uri, video.createdAt]
+      'INSERT INTO videos (id, name, description, uri, thumbnailUri, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [video.id, video.name, video.description || null, video.uri, video.thumbnailUri || null, video.createdAt]
     );
     console.log('✅ Video added to database:', video.id);
   } catch (error) {
