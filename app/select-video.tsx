@@ -24,16 +24,14 @@ export default function SelectVideoScreen() {
   const [loadingType, setLoadingType] = useState<'photo' | 'document' | null>(null);
 
   const requestPermissions = async () => {
-    if (Platform.OS === 'ios') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant photo library access to select videos.',
-          [{ text: 'OK' }]
-        );
-        return false;
-      }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Please grant photo library access to select videos.',
+        [{ text: 'OK' }]
+      );
+      return false;
     }
     return true;
   };
@@ -123,12 +121,16 @@ export default function SelectVideoScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <View style={styles.container}>
       {/* Header */}
       <Header title="Select Video" />
 
       {/* Content */}
-      <View style={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
         <Animated.View 
           entering={FadeInDown.delay(100).duration(400)} 
           style={styles.iconContainer}
@@ -149,29 +151,29 @@ export default function SelectVideoScreen() {
           Select a video from your photo library or files to create a 5-second diary entry
         </Animated.Text>
 
-        {/* Primary Action - Photo Library (iOS) */}
-        {Platform.OS === 'ios' && (
-          <AnimatedButton
-            variant="primary"
-            size="large"
-            entering={FadeInUp.delay(400).duration(400)}
-            onPress={pickVideoFromPhotos}
-            disabled={isLoading}
-            style={styles.primaryButton}
-          >
-            {isLoading && loadingType === 'photo' ? (
-              <View style={styles.buttonContent}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Loading...</Text>
-              </View>
-            ) : (
-              <>
-                <Ionicons name="images" size={24} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Choose from Photos</Text>
-              </>
-            )}
-          </AnimatedButton>
-        )}
+        {/* Primary Action - Photo Library */}
+        <AnimatedButton
+          variant="primary"
+          size="large"
+          entering={FadeInUp.delay(400).duration(400)}
+          onPress={pickVideoFromPhotos}
+          disabled={isLoading}
+          style={styles.primaryButton}
+        >
+          {isLoading && loadingType === 'photo' ? (
+            <View style={styles.buttonContent}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.primaryButtonText}>Loading...</Text>
+            </View>
+          ) : (
+            <>
+              <Ionicons name="images" size={24} color="#ffffff" />
+              <Text style={styles.primaryButtonText}>
+                {Platform.OS === 'ios' ? 'Choose from Photos' : 'Choose from Gallery'}
+              </Text>
+            </>
+          )}
+        </AnimatedButton>
 
         {/* Secondary Action - File Picker */}
         <AnimatedButton
@@ -197,35 +199,34 @@ export default function SelectVideoScreen() {
           )}
         </AnimatedButton>
 
-        {/* Test Video Option */}
-        <Animated.View 
-          entering={FadeIn.delay(600).duration(400)} 
-          style={styles.divider}
-        >
-          <View style={styles.dividerLine} />
-
-        </Animated.View>
         {/* Info Box */}
-        {Platform.OS === 'ios' && (
-          <Animated.View 
-            entering={FadeInUp.delay(800).duration(400)} 
-            style={styles.infoBox}
-          >
-            <Ionicons name="information-circle" size={20} color="#2563eb" />
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>💡 How to Add Videos</Text>
-           <Text style={styles.infoText}>
-  Adding videos to the iOS Simulator:{'\n'}
-  1. Simply drag and drop any video file from your computer directly onto the simulator window.{'\n'}
-  2. The simulator will automatically save it to the Photos app.{'\n'}
-  3. Then tap “Choose from Photos” Button.
-</Text>
-
-            </View>
+        <Animated.View 
+          entering={FadeInUp.delay(700).duration(400)} 
+          style={styles.infoBox}
+        >
+          <Ionicons name="information-circle" size={20} color="#2563eb" />
+          <View style={styles.infoTextContainer}>
+            <Text style={styles.infoTitle}>💡 How to Add Videos</Text>
+            {Platform.OS === 'ios' ? (
+              <Text style={styles.infoText}>
+                Adding videos to the iOS Simulator:{'\n'}
+                1. Simply drag and drop any video file from your computer directly onto the simulator window.{'\n'}
+                2. The simulator will automatically save it to the Photos app.{'\n'}
+                3. Then tap "Choose from Photos" button.
+              </Text>
+            ) : (
+              <Text style={styles.infoText}>
+                Adding videos to the Android Emulator:{'\n'}
+                1. Open Gallery app in the emulator{'\n'}
+                2. Use the emulator's extended controls to add media files{'\n'}
+                3. Or use "Choose Video File" to select from device storage.
+              </Text>
+            )}
+          </View>
           </Animated.View>
-        )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -236,13 +237,13 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   content: {
-    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
     width: 120,
