@@ -1,20 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
-import Header from '../src/components/Header';
 import AnimatedButton from '../src/components/AnimatedButton';
+import Header from '../src/components/Header';
 
 const TEST_VIDEO_URL = 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
 
@@ -203,25 +203,8 @@ export default function SelectVideoScreen() {
           style={styles.divider}
         >
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
+
         </Animated.View>
-
-        <AnimatedButton
-          variant="outline"
-          size="medium"
-          entering={FadeInUp.delay(700).duration(400)}
-          onPress={useTestVideo}
-          disabled={isLoading}
-          style={styles.testButton}
-        >
-          <Ionicons name="play-circle" size={20} color="#6b7280" />
-          <View>
-            <Text style={styles.testButtonText}>Use Test Video</Text>
-            <Text style={styles.testButtonSubtext}>(For Testing)</Text>
-          </View>
-        </AnimatedButton>
-
         {/* Info Box */}
         {Platform.OS === 'ios' && (
           <Animated.View 
@@ -230,13 +213,14 @@ export default function SelectVideoScreen() {
           >
             <Ionicons name="information-circle" size={20} color="#2563eb" />
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>💡 Simulator Tip</Text>
-              <Text style={styles.infoText}>
-                To add videos to the simulator:{'\n'}
-                1. Go to Device → Photos → Add Photos{'\n'}
-                2. Or download a video in Safari and save to Photos{'\n'}
-                3. Then use "Choose from Photos" above
-              </Text>
+              <Text style={styles.infoTitle}>💡 How to Add Videos</Text>
+           <Text style={styles.infoText}>
+  Adding videos to the iOS Simulator:{'\n'}
+  1. Simply drag and drop any video file from your computer directly onto the simulator window.{'\n'}
+  2. The simulator will automatically save it to the Photos app.{'\n'}
+  3. Then tap “Choose from Photos” Button.
+</Text>
+
             </View>
           </Animated.View>
         )}
