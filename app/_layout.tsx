@@ -4,6 +4,7 @@ import { queryClient } from '../src/lib/queryClient';
 import { useEffect } from 'react';
 import { LogBox } from 'react-native';
 import { initDatabase } from '../src/lib/database';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 export default function Layout() {
   useEffect(() => {
@@ -38,19 +39,21 @@ export default function Layout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack
-        screenOptions={{
-          headerShown: false, // Disable default header for all screens
-        }}
-      >
-        <Stack.Screen
-          name="index"
-          options={{
-            gestureEnabled: false, // Disable swipe back gesture on iOS
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Stack
+          screenOptions={{
+            headerShown: false, // Disable default header for all screens
           }}
-        />
-      </Stack>
-    </QueryClientProvider>
+        >
+          <Stack.Screen
+            name="index"
+            options={{
+              gestureEnabled: false, // Disable swipe back gesture on iOS
+            }}
+          />
+        </Stack>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

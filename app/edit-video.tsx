@@ -11,11 +11,13 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../src/components/Header';
 import MetadataForm from '../src/components/metadata/MetadataForm';
 import { metadataSchema, type MetadataFormData } from '../src/schemas/metadataSchema';
+import AnimatedButton from '../src/components/AnimatedButton';
 
 type FormData = MetadataFormData;
 
@@ -88,16 +90,20 @@ export default function EditVideoScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Header title="Edit Video" />
 
-      <View style={styles.formContainer}>
+      <Animated.View 
+        entering={FadeInDown.delay(100).duration(400)} 
+        style={styles.formContainer}
+      >
         <MetadataForm control={control} errors={errors} disabled={isSaving} />
-      </View>
+      </Animated.View>
 
       {/* Action Button */}
       <View style={styles.actionButtonContainer}>
-        <TouchableOpacity
+        <AnimatedButton
+          variant="primary"
+          size="large"
           onPress={handleSubmit(onSubmit)}
           disabled={isSaving}
-          style={[styles.saveButton, isSaving && styles.buttonDisabled]}
         >
           {isSaving ? (
             <View style={styles.buttonContent}>
@@ -107,7 +113,7 @@ export default function EditVideoScreen() {
           ) : (
             <Text style={styles.saveButtonText}>Save Changes</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
     </ScrollView>
   );
@@ -128,25 +134,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     marginTop: 'auto',
   },
-  saveButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   saveButtonText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  buttonDisabled: {
-    backgroundColor: '#9ca3af',
   },
   buttonContent: {
     flexDirection: 'row',

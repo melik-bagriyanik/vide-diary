@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   ActivityIndicator,
   ScrollView,
   Alert,
@@ -11,6 +10,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useVideoStore } from '../src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../src/components/Header';
@@ -18,6 +18,7 @@ import MetadataForm from '../src/components/metadata/MetadataForm';
 import SegmentInfo from '../src/components/metadata/SegmentInfo';
 import { useVideoProcessing } from '../src/hooks/useVideoProcessing';
 import { metadataSchema, type MetadataFormData } from '../src/schemas/metadataSchema';
+import AnimatedButton from '../src/components/AnimatedButton';
 
 export default function MetadataScreen() {
   const params = useLocalSearchParams();
@@ -97,16 +98,20 @@ export default function MetadataScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Header title="Add Details" />
 
-      <View style={styles.formContainer}>
+      <Animated.View 
+        entering={FadeInDown.delay(100).duration(400)} 
+        style={styles.formContainer}
+      >
         <MetadataForm control={control} errors={errors} disabled={isProcessing} />
         <SegmentInfo duration={Math.round(endTime - startTime)} />
-      </View>
+      </Animated.View>
 
       <View style={styles.actionButtonContainer}>
-        <TouchableOpacity
+        <AnimatedButton
+          variant="primary"
+          size="large"
           onPress={handleSubmit(onSubmit)}
           disabled={isProcessing}
-          style={[styles.saveButton, isProcessing && styles.buttonDisabled]}
         >
           {isProcessing ? (
             <View style={styles.buttonContent}>
@@ -119,7 +124,7 @@ export default function MetadataScreen() {
               <Text style={styles.saveButtonText}>Save Video</Text>
             </>
           )}
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
     </ScrollView>
   );
@@ -140,28 +145,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     marginTop: 'auto',
   },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   saveButtonText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  buttonDisabled: {
-    backgroundColor: '#9ca3af',
   },
   buttonContent: {
     flexDirection: 'row',

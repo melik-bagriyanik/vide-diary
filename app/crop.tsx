@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import VideoPlayer, { VideoPlayerRef } from '../src/components/VideoPlayer';
 import Header from '../src/components/Header';
 import TimeDisplay from '../src/components/crop/TimeDisplay';
@@ -8,6 +9,7 @@ import VideoScrubber from '../src/components/crop/VideoScrubber';
 import LoadingScreen from '../src/components/crop/LoadingScreen';
 import ErrorScreen from '../src/components/crop/ErrorScreen';
 import { useVideoPersistence } from '../src/hooks/useVideoPersistence';
+import AnimatedButton from '../src/components/AnimatedButton';
 
 const SEGMENT_DURATION = 5; // 5 seconds fixed
 
@@ -98,7 +100,10 @@ export default function CropScreen() {
     <View style={styles.container}>
       <Header title="Select Segment" />
 
-      <View style={styles.videoContainer}>
+      <Animated.View 
+        entering={FadeIn.duration(400)} 
+        style={styles.videoContainer}
+      >
         <VideoPlayer
           ref={videoRef}
           uri={finalUri}
@@ -106,9 +111,12 @@ export default function CropScreen() {
           onProgress={handleProgress}
           onError={handleVideoError}
         />
-      </View>
+      </Animated.View>
 
-      <View style={styles.timeContainer}>
+      <Animated.View 
+        entering={FadeInDown.delay(200).duration(400)} 
+        style={styles.timeContainer}
+      >
         <TimeDisplay startTime={startTime} endTime={endTime} segmentDuration={SEGMENT_DURATION} />
 
         <VideoScrubber
@@ -119,19 +127,25 @@ export default function CropScreen() {
           onValueChange={handleSliderChange}
         />
 
-        <TouchableOpacity onPress={handlePreview} style={styles.previewButton}>
+        <AnimatedButton
+          variant="outline"
+          size="medium"
+          onPress={handlePreview}
+          entering={FadeInDown.delay(300).duration(400)}
+        >
           <Text style={styles.previewButtonText}>▶ Preview Segment</Text>
-        </TouchableOpacity>
-      </View>
+        </AnimatedButton>
+      </Animated.View>
 
       <View style={styles.actionButtonContainer}>
-        <TouchableOpacity
+        <AnimatedButton
+          variant="primary"
+          size="large"
           onPress={handleProceed}
-          style={[styles.proceedButton, duration === 0 && styles.buttonDisabled]}
           disabled={duration === 0}
         >
           <Text style={styles.proceedButtonText}>Continue to Metadata →</Text>
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
     </View>
   );
@@ -150,16 +164,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  previewButton: {
-    marginTop: 24,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
   previewButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -171,24 +175,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
-  proceedButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   proceedButtonText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  buttonDisabled: {
-    backgroundColor: '#9ca3af',
   },
 });

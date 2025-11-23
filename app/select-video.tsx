@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -10,10 +9,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../src/components/Header';
+import AnimatedButton from '../src/components/AnimatedButton';
 
 const TEST_VIDEO_URL = 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
 
@@ -128,22 +129,35 @@ export default function SelectVideoScreen() {
 
       {/* Content */}
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
+        <Animated.View 
+          entering={FadeInDown.delay(100).duration(400)} 
+          style={styles.iconContainer}
+        >
           <Ionicons name="videocam" size={64} color="#2563eb" />
-        </View>
+        </Animated.View>
 
-        <Text style={styles.title}>Choose Your Video</Text>
-        <Text style={styles.subtitle}>
+        <Animated.Text 
+          entering={FadeInDown.delay(200).duration(400)} 
+          style={styles.title}
+        >
+          Choose Your Video
+        </Animated.Text>
+        <Animated.Text 
+          entering={FadeInDown.delay(300).duration(400)} 
+          style={styles.subtitle}
+        >
           Select a video from your photo library or files to create a 5-second diary entry
-        </Text>
+        </Animated.Text>
 
         {/* Primary Action - Photo Library (iOS) */}
         {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.primaryButton, isLoading && loadingType === 'photo' && styles.buttonDisabled]}
+          <AnimatedButton
+            variant="primary"
+            size="large"
+            entering={FadeInUp.delay(400).duration(400)}
             onPress={pickVideoFromPhotos}
             disabled={isLoading}
-            activeOpacity={0.8}
+            style={styles.primaryButton}
           >
             {isLoading && loadingType === 'photo' ? (
               <View style={styles.buttonContent}>
@@ -156,18 +170,17 @@ export default function SelectVideoScreen() {
                 <Text style={styles.primaryButtonText}>Choose from Photos</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedButton>
         )}
 
         {/* Secondary Action - File Picker */}
-        <TouchableOpacity
-          style={[
-            styles.secondaryButton,
-            isLoading && loadingType === 'document' && styles.buttonDisabled,
-          ]}
+        <AnimatedButton
+          variant="secondary"
+          size="large"
+          entering={FadeInUp.delay(500).duration(400)}
           onPress={pickVideoFromFiles}
           disabled={isLoading}
-          activeOpacity={0.8}
+          style={styles.secondaryButton}
         >
           {isLoading && loadingType === 'document' ? (
             <View style={styles.buttonContent}>
@@ -182,29 +195,39 @@ export default function SelectVideoScreen() {
               </Text>
             </>
           )}
-        </TouchableOpacity>
+        </AnimatedButton>
 
         {/* Test Video Option */}
-        <View style={styles.divider}>
+        <Animated.View 
+          entering={FadeIn.delay(600).duration(400)} 
+          style={styles.divider}
+        >
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>OR</Text>
           <View style={styles.dividerLine} />
-        </View>
+        </Animated.View>
 
-        <TouchableOpacity
-          style={styles.testButton}
+        <AnimatedButton
+          variant="outline"
+          size="medium"
+          entering={FadeInUp.delay(700).duration(400)}
           onPress={useTestVideo}
           disabled={isLoading}
-          activeOpacity={0.8}
+          style={styles.testButton}
         >
           <Ionicons name="play-circle" size={20} color="#6b7280" />
-          <Text style={styles.testButtonText}>Use Test Video</Text>
-          <Text style={styles.testButtonSubtext}>(For Testing)</Text>
-        </TouchableOpacity>
+          <View>
+            <Text style={styles.testButtonText}>Use Test Video</Text>
+            <Text style={styles.testButtonSubtext}>(For Testing)</Text>
+          </View>
+        </AnimatedButton>
 
         {/* Info Box */}
         {Platform.OS === 'ios' && (
-          <View style={styles.infoBox}>
+          <Animated.View 
+            entering={FadeInUp.delay(800).duration(400)} 
+            style={styles.infoBox}
+          >
             <Ionicons name="information-circle" size={20} color="#2563eb" />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>💡 Simulator Tip</Text>
@@ -215,7 +238,7 @@ export default function SelectVideoScreen() {
                 3. Then use "Choose from Photos" above
               </Text>
             </View>
-          </View>
+          </Animated.View>
         )}
       </View>
     </ScrollView>
@@ -266,16 +289,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
     marginBottom: 12,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   secondaryButton: {
     width: '100%',
@@ -283,12 +297,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderWidth: 2,
-    borderColor: '#2563eb',
     marginBottom: 24,
   },
   buttonContent: {
@@ -305,9 +313,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2563eb',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
   divider: {
     flexDirection: 'row',
@@ -328,13 +333,10 @@ const styles = StyleSheet.create({
   },
   testButton: {
     width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 24,
   },
   testButtonText: {

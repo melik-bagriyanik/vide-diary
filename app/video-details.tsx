@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useVideoStore } from '@/src/store/useVideoStore';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '@/src/components/Header';
@@ -78,16 +79,21 @@ export default function VideoDetailsScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Header title="Video Details" />
 
-      <View style={styles.videoContainer}>
+      <Animated.View 
+        entering={FadeIn.duration(400)} 
+        style={styles.videoContainer}
+      >
         <VideoPlayerWrapper uri={fixedUri} />
-      </View>
+      </Animated.View>
 
-      <VideoDetailsInfo
-        video={video}
-        isDeleting={isDeleting}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+        <VideoDetailsInfo
+          video={video}
+          isDeleting={isDeleting}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </Animated.View>
     </ScrollView>
   );
 }
